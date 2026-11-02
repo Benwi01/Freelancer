@@ -81,6 +81,7 @@ namespace Freelancer
             t.fontSize = size;
             t.alignment = align;
             t.color = TextColor;
+            t.raycastTarget = false; // labels must never block clicks on buttons underneath
             t.horizontalOverflow = HorizontalWrapMode.Wrap;
             t.verticalOverflow = VerticalWrapMode.Overflow;
             return t;

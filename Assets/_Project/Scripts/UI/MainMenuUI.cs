@@ -86,7 +86,7 @@ namespace Freelancer
             gameObject.AddComponent<CustomizePanel>().Build(canvas.transform, playerPrefab, new Vector2(400, -175));
 
             m_Status = UiFactory.CreateText("Status", canvas.transform, "", 32);
-            UiFactory.Place(m_Status.rectTransform, new Vector2(0.5f, 0f), new Vector2(1600, 80), new Vector2(0, 80));
+            UiFactory.Place(m_Status.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(760, 120), new Vector2(-380, -340));
         }
 
         void RefreshStatus()
