@@ -89,9 +89,11 @@ namespace Freelancer.EditorTools
             SetupUtil.Block("Bulkhead", van, new Vector3(0, 1.5f, -9.45f), new Vector3(2.2f, 1.8f, 0.1f), white);
             SetupUtil.Block("Cab", van, new Vector3(0, 1.2f, -10.35f), new Vector3(2.2f, 1.8f, 1.7f), white);
             Deco(PrimitiveType.Cube, "Windshield", van, new Vector3(0, 1.6f, -11.21f), new Vector3(1.9f, 0.7f, 0.02f), glass);
-            foreach (var x in new[] { -1.12f, 1.12f })
+            foreach (var side in new[] { -1f, 1f })
             foreach (var z in new[] { -10.4f, -7.0f })
             {
+                // Rear wheels sit a touch further out (tuned by hand in the editor).
+                float x = z > -8f ? (side > 0 ? 1.127f : -1.147f) : 1.12f * side;
                 var wheel = Deco(PrimitiveType.Cylinder, "Wheel", van, new Vector3(x, 0.35f, z), new Vector3(0.7f, 0.12f, 0.7f), tyre);
                 wheel.transform.localRotation = Quaternion.Euler(0, 0, 90);
             }
@@ -115,7 +117,7 @@ namespace Freelancer.EditorTools
             SetupUtil.Block("Front_WestJamb", shell, new Vector3(-5.8f, top / 2, 4.1f), new Vector3(0.4f, top, 0.2f), s_Wall);
             SetupUtil.Block("Front_East", shell, new Vector3(0.95f, top / 2, 4.1f), new Vector3(10.1f, top, 0.2f), s_Wall);
             SetupUtil.Block("Front_Lintel", shell, new Vector3(-4.85f, (top + 2.4f) / 2, 4.1f), new Vector3(1.5f, top - 2.4f, 0.2f), s_Wall);
-            Label("DELIVERIES  >  TOP FLOOR", shell, new Vector3(-4.85f, 3.15f, 3.9f), Quaternion.identity, 0.13f, Palette.Wall, Palette.Trim);
+            Label("Brendas Birthday On Top Floor", shell, new Vector3(-4.85f, 3.15f, 3.9f), Quaternion.identity, 0.13f, Palette.Wall, Palette.Trim);
 
             // Roof over the stairwell and the apartment (its underside is the ceiling).
             SetupUtil.Block("Roof", shell, new Vector3(0f, 9.1f, 10.1f), new Vector3(12.4f, 0.2f, 12.2f), s_Wall);

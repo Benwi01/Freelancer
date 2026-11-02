@@ -77,10 +77,10 @@ namespace Freelancer.EditorTools
         {
             var n = Group("Neighbours");
             // Same side of the street (fronts face the street, -z).
-            Building(n, "East1", 6.2f, 15.5f, 4.6f, 11.4f, 7f, 1, facesNorth: false);
+            Building(n, "East1", 6.2f, 15.5f, 4.13f, 11.4f, 7f, 1, facesNorth: false);
             Building(n, "West1", -15f, -6.2f, 4.0f, 12f, 11.5f, 0, facesNorth: false);
             Building(n, "East2", 15.5f, 25f, 4.0f, 12f, 6f, 2, facesNorth: false);
-            Building(n, "West2", -25f, -15f, 4.6f, 11.4f, 8.5f, 3, facesNorth: false);
+            Building(n, "West2", -25f, -15f, 4.06f, 11.4f, 8.5f, 3, facesNorth: false);
 
             // Across the street (fronts face +z), behind their own sidewalk.
             SetupUtil.Block("FarSidewalk", n, new Vector3(0f, 0.05f, -20f), new Vector3(80f, 0.1f, 3f),
@@ -106,7 +106,8 @@ namespace Freelancer.EditorTools
                 SetupUtil.Mat("Neighbour" + colour, Palette.Neighbours[colour]));
             Box("Cornice", b, new Vector3(xMid, height + 0.12f, zMid), new Vector3(w + 0.1f, 0.25f, depth + 0.3f), s_Stone);
             Box("Plinth", b, new Vector3(xMid, 0.22f, zFront + outward * 0.03f), new Vector3(w, 0.45f, 0.06f), s_Stone);
-            Box("Door", b, new Vector3(xMid, 1.05f, zFront + outward * 0.03f), new Vector3(1.1f, 2.1f, 0.06f), s_Trim);
+            // Door a little proud of the plinth so the two don't flicker against each other.
+            Box("Door", b, new Vector3(xMid, 1.05f, zFront + outward * 0.05f), new Vector3(1.1f, 2.1f, 0.06f), s_Trim);
 
             for (float y = 1.6f; y + 0.8f < height - 0.3f; y += 3f)
             for (float x = x0 + 1.4f; x < x1 - 0.9f; x += 2.4f)
