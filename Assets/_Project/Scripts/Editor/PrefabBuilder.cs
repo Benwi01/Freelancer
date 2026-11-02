@@ -297,16 +297,25 @@ namespace Freelancer.EditorTools
 
             var head = Bone("Head", "head", torso, new Vector3(0, 0.5f, 0));
             Vis(sphere, "Skull", head, new Vector3(0, 0.2f, 0), Vector3.one * 0.46f, skin);
-            // Big googly eyes: white eyeballs bulging out of the face, pupils on pivots (see PlayerEyes).
+            // Tired googly eyes: mismatched eyeballs under heavy, droopy lids (overworked gig worker),
+            // pupils on pivots that wobble around (see PlayerEyes).
             var eyeWhite = SetupUtil.Mat("EyeWhite", new Color(0.97f, 0.97f, 0.95f), 0.55f);
-            foreach (var side in new[] { -1f, 1f })
+            var lid = SetupUtil.Mat("Eyelid", new Color(0.9f, 0.7f, 0.56f));
+            var eyeSpecs = new[]
             {
-                string s = side < 0 ? "L" : "R";
-                var eyeCenter = new Vector3(0.1f * side, 0.165f, 0.16f);
-                Vis(sphere, "Eyeball" + s, head, eyeCenter, Vector3.one * 0.215f, eyeWhite);
+                // name, centre, eyeball size, lid droop forward, lid droop to the outside
+                ("L", new Vector3(-0.1f, 0.17f, 0.162f), 0.2f, 6f, 16f),
+                ("R", new Vector3(0.088f, 0.158f, 0.17f), 0.165f, 0f, -12f),
+            };
+            foreach (var (s, eyeCenter, size, forward, outward) in eyeSpecs)
+            {
+                Vis(sphere, "Eyeball" + s, head, eyeCenter, Vector3.one * size, eyeWhite);
                 var pivot = SetupUtil.Empty("PupilPivot" + s, head, eyeCenter).transform;
                 rig.Pupils.Add(pivot);
-                Vis(sphere, "Pupil", pivot, new Vector3(0, 0, 0.096f), new Vector3(0.062f, 0.062f, 0.03f), eyes);
+                Vis(sphere, "Pupil", pivot, new Vector3(0, 0, size * 0.465f), new Vector3(0.058f, 0.058f, 0.03f), eyes);
+                // Lid: a dome over the top of the eyeball, tipped forward and down at the outer corner.
+                LowPolyMeshes.Visual(LowPolyMeshes.Hemisphere, "Eyelid" + s, head, eyeCenter + Vector3.up * size * 0.12f,
+                    Vector3.one * size * 1.06f, lid, Quaternion.Euler(forward, 0f, outward));
             }
             Vis(sphere, "Beanie", head, new Vector3(0, 0.29f, -0.01f), new Vector3(0.49f, 0.36f, 0.49f), shirt, tint: true);
             Vis(cylinder, "BeanieCuff", head, new Vector3(0, 0.27f, -0.01f), new Vector3(0.5f, 0.035f, 0.5f), shirt, tint: true);

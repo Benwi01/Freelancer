@@ -58,8 +58,8 @@ namespace Freelancer.EditorTools
 
                 Shoot(c, "player-preview.png");
                 c.fieldOfView = 22f;
-                camGo.transform.position = origin + new Vector3(0, 1.65f, -1.6f);
-                camGo.transform.LookAt(origin + new Vector3(0, 1.58f, 0));
+                camGo.transform.position = origin + new Vector3(-1.3f, 1.66f, -1.5f);
+                camGo.transform.LookAt(origin + new Vector3(-1.3f, 1.6f, 0));
                 Shoot(c, "player-face.png");
                 Debug.Log("[Freelancer] Wrote Temp/player-preview.png");
             }

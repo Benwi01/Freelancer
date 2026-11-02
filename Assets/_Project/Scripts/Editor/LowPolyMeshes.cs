@@ -15,6 +15,8 @@ namespace Freelancer.EditorTools
 
         public static Mesh Capsule => Get("LP_Capsule", () => Lathe(CapsuleProfile(3), 8));
         public static Mesh Sphere => Get("LP_Sphere", () => Lathe(SphereProfile(5), 9));
+        /// <summary>Top half of a radius-0.5 sphere with a flat bottom at y = 0 (eyelids, domes).</summary>
+        public static Mesh Hemisphere => Get("LP_Hemisphere", () => Lathe(HemisphereProfile(3), 10, new Vector3(0, 0.2f, 0)));
         public static Mesh Cylinder => Get("LP_Cylinder", () => Lathe(new List<Vector2>
             { new(0, 1), new(0.5f, 1), new(0.5f, -1), new(0, -1) }, 10));
 
@@ -76,6 +78,18 @@ namespace Freelancer.EditorTools
             return p;
         }
 
+        static List<Vector2> HemisphereProfile(int rings)
+        {
+            var p = new List<Vector2>();
+            for (int i = 0; i <= rings; i++)
+            {
+                float a = Mathf.PI / 2f * i / rings;
+                p.Add(new Vector2(0.5f * Mathf.Sin(a), 0.5f * Mathf.Cos(a)));
+            }
+            p.Add(new Vector2(0, 0));
+            return p;
+        }
+
         static List<Vector2> SphereProfile(int rings)
         {
             var p = new List<Vector2>();
@@ -88,7 +102,7 @@ namespace Freelancer.EditorTools
         }
 
         /// <summary>Spin a profile around the Y axis and build a flat-shaded mesh from it.</summary>
-        static Mesh Lathe(List<Vector2> profile, int sides)
+        static Mesh Lathe(List<Vector2> profile, int sides, Vector3 center = default)
         {
             var verts = new List<Vector3>();
             var tris = new List<int>();
@@ -104,7 +118,7 @@ namespace Freelancer.EditorTools
                 // Make every face point outward (away from the centre). All shapes are convex.
                 Vector3 n = Vector3.Cross(b - a, c - a);
                 Vector3 centroid = (a + b + c) / 3f;
-                if (Vector3.Dot(n, centroid) < 0) (b, c) = (c, b);
+                if (Vector3.Dot(n, centroid - center) < 0) (b, c) = (c, b);
                 int i = verts.Count;
                 verts.Add(a); verts.Add(b); verts.Add(c);
                 tris.Add(i); tris.Add(i + 1); tris.Add(i + 2);
