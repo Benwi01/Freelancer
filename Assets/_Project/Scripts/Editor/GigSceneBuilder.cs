@@ -36,16 +36,13 @@ namespace Freelancer.EditorTools
                 cam.transform.position = new Vector3(14, 14, -16);
                 cam.transform.LookAt(new Vector3(0, 3, 4));
             }
-            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(0.75f, 0.8f, 0.9f);
-            RenderSettings.ambientEquatorColor = new Color(0.55f, 0.55f, 0.55f);
-            RenderSettings.ambientGroundColor = new Color(0.3f, 0.28f, 0.25f);
+            LookSetup.ApplyToOpenScene();
 
             s_Level = new GameObject("Level").transform;
-            s_Wall = SetupUtil.Mat("Wall", new Color(0.86f, 0.82f, 0.74f));
-            s_Floor = SetupUtil.Mat("Floor", new Color(0.62f, 0.5f, 0.38f));
-            s_Stairs = SetupUtil.Mat("Stairs", new Color(0.55f, 0.56f, 0.6f));
-            s_Trim = SetupUtil.Mat("Trim", new Color(0.35f, 0.3f, 0.45f));
+            s_Wall = SetupUtil.Mat("Wall", Palette.Wall);
+            s_Floor = SetupUtil.Mat("Floor", Palette.Floor);
+            s_Stairs = SetupUtil.Mat("Stairs", Palette.Stairs);
+            s_Trim = SetupUtil.Mat("Trim", Palette.Trim);
 
             BuildStreet();
             BuildVan();
@@ -66,11 +63,11 @@ namespace Freelancer.EditorTools
         static void BuildStreet()
         {
             var street = Group("Street");
-            SetupUtil.Block("Asphalt", street, new Vector3(0, -0.5f, 0), new Vector3(80, 1, 80),
-                SetupUtil.Mat("Asphalt", new Color(0.3f, 0.31f, 0.34f)));
+            SetupUtil.Block("Asphalt", street, new Vector3(0, -0.5f, 0), new Vector3(400, 1, 400),
+                SetupUtil.Mat("Asphalt", Palette.Asphalt));
             SetupUtil.Block("Sidewalk", street, new Vector3(0, 0.05f, 1.2f), new Vector3(40, 0.1f, 5.6f),
-                SetupUtil.Mat("Sidewalk", new Color(0.7f, 0.7f, 0.68f)));
-            var paint = SetupUtil.Mat("RoadPaint", new Color(0.95f, 0.85f, 0.3f));
+                SetupUtil.Mat("Sidewalk", Palette.Sidewalk));
+            var paint = SetupUtil.Mat("RoadPaint", Palette.RoadPaint);
             for (int i = -4; i <= 4; i++)
                 Deco(PrimitiveType.Cube, "LaneMark", street, new Vector3(i * 4f + 3.5f, 0.005f, -13), new Vector3(2f, 0.01f, 0.2f), paint);
         }
@@ -78,9 +75,9 @@ namespace Freelancer.EditorTools
         static void BuildVan()
         {
             var van = Group("Van");
-            var white = SetupUtil.Mat("VanWhite", new Color(0.93f, 0.93f, 0.95f));
-            var glass = SetupUtil.Mat("Glass", new Color(0.15f, 0.2f, 0.3f), 0.9f);
-            var tyre = SetupUtil.Mat("Tyre", new Color(0.08f, 0.08f, 0.08f));
+            var white = SetupUtil.Mat("VanWhite", Palette.VanWhite);
+            var glass = SetupUtil.Mat("Glass", Palette.Glass, 0.8f);
+            var tyre = SetupUtil.Mat("Tyre", Palette.Tyre);
 
             // Cargo bay: open at the back (+z), floor top at y 0.6.
             SetupUtil.Block("CargoFloor", van, new Vector3(0, 0.3f, -8f), new Vector3(2.2f, 0.6f, 3f), white);
@@ -177,22 +174,22 @@ namespace Freelancer.EditorTools
             SetupUtil.Block("AptFloor", apt, new Vector3(2.1f, 5.85f, 10.1f), new Vector3(7.8f, 0.3f, 11.8f), s_Floor);
             // Fill under the apartment so nothing falls into the void.
             SetupUtil.Block("GroundFloorFill", apt, new Vector3(2.1f, 2.85f, 10.1f), new Vector3(7.8f, 5.7f, 11.8f),
-                SetupUtil.Mat("Hidden", new Color(0.4f, 0.4f, 0.4f)));
+                SetupUtil.Mat("Hidden", Palette.Hidden));
 
             // The table.
-            var wood = SetupUtil.Mat("TableWood", new Color(0.45f, 0.28f, 0.16f));
+            var wood = SetupUtil.Mat("TableWood", Palette.Wood);
             var tablePos = new Vector3(3.5f, 6f, 12f);
             SetupUtil.Block("TableTop", apt, tablePos + new Vector3(0, 0.8f, 0), new Vector3(1.6f, 0.08f, 1.1f), wood);
             foreach (var x in new[] { -0.7f, 0.7f })
             foreach (var z in new[] { -0.45f, 0.45f })
                 SetupUtil.Block("TableLeg", apt, tablePos + new Vector3(x, 0.38f, z), new Vector3(0.08f, 0.76f, 0.08f), wood);
             Deco(PrimitiveType.Cube, "TargetMat", apt, tablePos + new Vector3(0, 0.845f, 0), new Vector3(1.3f, 0.01f, 0.9f),
-                SetupUtil.Mat("Target", new Color(0.3f, 0.9f, 0.4f)));
+                SetupUtil.Mat("Target", Palette.Target));
             Label("PLACE CAKE HERE", apt, tablePos + new Vector3(0, 2.2f, 0), Quaternion.Euler(0, 90, 0), 0.3f,
-                new Color(0.3f, 0.9f, 0.4f));
+                Palette.Target);
 
             // Furniture to bump into.
-            var couch = SetupUtil.Mat("Couch", new Color(0.35f, 0.5f, 0.7f));
+            var couch = SetupUtil.Mat("Couch", Palette.Couch);
             SetupUtil.Block("Couch", apt, new Vector3(4.6f, 6.4f, 6.2f), new Vector3(2.4f, 0.8f, 0.9f), couch);
             SetupUtil.Block("CouchBack", apt, new Vector3(4.6f, 6.8f, 5.75f), new Vector3(2.4f, 1.2f, 0.25f), couch);
             SetupUtil.Block("Bookshelf", apt, new Vector3(0.2f, 7f, 15.7f), new Vector3(1.6f, 2f, 0.4f), wood);

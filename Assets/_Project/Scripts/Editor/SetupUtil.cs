@@ -29,7 +29,7 @@ namespace Freelancer.EditorTools
         }
 
         /// <summary>Get or create a flat-colour URP Lit material asset.</summary>
-        public static Material Mat(string name, Color color, float smoothness = 0.2f)
+        public static Material Mat(string name, Color color, float smoothness = 0.1f)
         {
             EnsureFolder(MaterialsDir);
             string path = $"{MaterialsDir}/M_{name}.mat";

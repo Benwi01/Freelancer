@@ -21,9 +21,9 @@ namespace Freelancer.EditorTools
 
             Register(BuildPlayer());
             Register(BuildProp(BoxPath, "box", PrimitiveType.Cube, new Vector3(0.6f, 0.5f, 0.6f), 4f,
-                SetupUtil.Mat("Cardboard", new Color(0.72f, 0.55f, 0.35f))));
+                SetupUtil.Mat("Cardboard", Palette.Cardboard)));
             Register(BuildProp(BucketPath, "paint bucket", PrimitiveType.Cylinder, new Vector3(0.35f, 0.22f, 0.35f), 3f,
-                SetupUtil.Mat("PaintBucket", new Color(0.3f, 0.75f, 0.85f))));
+                SetupUtil.Mat("PaintBucket", Palette.PaintBucket)));
 
             var topDebris = BuildTierDebris(TopTierPath, "cake tier (top)", CakeTiers[2], 4f);
             var midDebris = BuildTierDebris(MidTierPath, "cake tier (middle)", CakeTiers[1], 8f);
@@ -207,6 +207,7 @@ namespace Freelancer.EditorTools
             cam.nearClipPlane = 0.05f;
             cam.fieldOfView = 75f;
             cam.enabled = false;
+            LookSetup.ConfigureCamera(cam);
             camGo.GetComponent<AudioListener>().enabled = false;
 
             var motor = root.AddComponent<PlayerMotor>();
