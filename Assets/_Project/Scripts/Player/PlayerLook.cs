@@ -34,7 +34,17 @@ namespace Freelancer
 
         public UnityEngine.Color TintColor => Colors[Color % Colors.Length];
 
-        const string PrefsKey = "Freelancer.Look";
+        /// <summary>
+        /// Where the look is saved. In the Editor each Multiplayer Play Mode player runs from its own
+        /// project folder, so the folder is part of the key and every virtual player keeps its own look
+        /// (otherwise they all share one save and end up identical).
+        /// </summary>
+        static string PrefsKey =>
+#if UNITY_EDITOR
+            "Freelancer.Look." + ((uint)Application.dataPath.GetHashCode()).ToString("x8");
+#else
+            "Freelancer.Look";
+#endif
 
         /// <summary>This machine's saved look. First time: defaults with a random colour.</summary>
         public static PlayerLook LoadLocal()
