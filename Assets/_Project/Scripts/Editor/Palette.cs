@@ -42,6 +42,38 @@ namespace Freelancer.EditorTools
         public static readonly Color Cardboard = Hex("D29B62");
         public static readonly Color PaintBucket = Hex("3FB5C2");
 
+        // Dressing: facades and street
+        public static readonly Color Brick = Hex("C8664B");
+        public static readonly Color Stone = Hex("E2D6C1");
+        public static readonly Color WindowFrame = Hex("F7F3EA");
+        public static readonly Color WindowGlass = Hex("8FC3E6");
+        public static readonly Color Awning = Hex("D9483B");
+        public static readonly Color Curb = Hex("B9B0A2");
+        public static readonly Color Leaf = Hex("62B04F");
+        public static readonly Color LeafDark = Hex("4E9A47");
+        public static readonly Color Trunk = Hex("7A5236");
+        public static readonly Color Metal = Hex("39404F");
+        public static readonly Color WarmLight = Hex("FFE2A8");
+        public static readonly Color Hydrant = Hex("D9413A");
+        public static readonly Color Mailbox = Hex("3C6FB5");
+        public static readonly Color Doormat = Hex("6B4A35");
+        public static readonly Color[] Neighbours =
+            { Hex("8FB8D6"), Hex("F0A77A"), Hex("A9CF8F"), Hex("E79BB5"), Hex("F2D27A"), Hex("B9A3D9") };
+
+        // Dressing: van
+        public static readonly Color GigOrange = Hex("FF8A2B");
+        public static readonly Color Bumper = Hex("3A3D45");
+        public static readonly Color Taillight = Hex("E0352B");
+
+        // Dressing: interiors
+        public static readonly Color StairwellWall = Hex("A8C9B4");
+        public static readonly Color Rug = Hex("C25478");
+        public static readonly Color PartyPink = Hex("F59BC1");
+        public static readonly Color PartyGold = Hex("F5C84C");
+        public static readonly Color PartyWhite = Hex("FBF7F0");
+        public static readonly Color Terracotta = Hex("C46A45");
+        public static readonly Color Cushion = Hex("F6C36A");
+
         static Color Hex(string hex)
         {
             ColorUtility.TryParseHtmlString("#" + hex, out var c);

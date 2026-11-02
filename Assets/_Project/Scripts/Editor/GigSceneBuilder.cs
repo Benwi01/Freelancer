@@ -16,13 +16,13 @@ namespace Freelancer.EditorTools
     ///   z 11.5..16  landing 1 (y 2) and top landing (y 6); z 4.2..6.5 landing 2 (y 4)
     ///   x -1.8..6   apartment at y 6, door in its west wall at z 13..14.6
     /// </summary>
-    static class GigSceneBuilder
+    static partial class GigSceneBuilder
     {
         const float StepRise = 0.2f;
         const float StepRun = 0.5f;
 
         static Transform s_Level;
-        static Material s_Wall, s_Floor, s_Stairs, s_Trim;
+        static Material s_Wall, s_Floor, s_Stairs, s_Trim, s_StairWall;
 
         [MenuItem("Freelancer/Setup/Build Cake Delivery Scene", priority = 22)]
         public static void BuildCakeDeliveryScene()
@@ -43,12 +43,14 @@ namespace Freelancer.EditorTools
             s_Floor = SetupUtil.Mat("Floor", Palette.Floor);
             s_Stairs = SetupUtil.Mat("Stairs", Palette.Stairs);
             s_Trim = SetupUtil.Mat("Trim", Palette.Trim);
+            s_StairWall = SetupUtil.Mat("StairwellWall", Palette.StairwellWall);
 
             BuildStreet();
             BuildVan();
             BuildBuildingShell();
             BuildStairwell();
             BuildApartment();
+            Dress(); // decoration only: see GigSceneBuilder.Dressing.cs
             PlaceGameplay();
 
             new GameObject("SessionHud").AddComponent<SessionHud>();
@@ -65,7 +67,7 @@ namespace Freelancer.EditorTools
             var street = Group("Street");
             SetupUtil.Block("Asphalt", street, new Vector3(0, -0.5f, 0), new Vector3(400, 1, 400),
                 SetupUtil.Mat("Asphalt", Palette.Asphalt));
-            SetupUtil.Block("Sidewalk", street, new Vector3(0, 0.05f, 1.2f), new Vector3(40, 0.1f, 5.6f),
+            SetupUtil.Block("Sidewalk", street, new Vector3(0, 0.05f, 1.2f), new Vector3(80, 0.1f, 5.6f),
                 SetupUtil.Mat("Sidewalk", Palette.Sidewalk));
             var paint = SetupUtil.Mat("RoadPaint", Palette.RoadPaint);
             for (int i = -4; i <= 4; i++)
@@ -113,18 +115,17 @@ namespace Freelancer.EditorTools
             SetupUtil.Block("Front_WestJamb", shell, new Vector3(-5.8f, top / 2, 4.1f), new Vector3(0.4f, top, 0.2f), s_Wall);
             SetupUtil.Block("Front_East", shell, new Vector3(0.95f, top / 2, 4.1f), new Vector3(10.1f, top, 0.2f), s_Wall);
             SetupUtil.Block("Front_Lintel", shell, new Vector3(-4.85f, (top + 2.4f) / 2, 4.1f), new Vector3(1.5f, top - 2.4f, 0.2f), s_Wall);
-            Deco(PrimitiveType.Cube, "DoorFrame", shell, new Vector3(-4.85f, 2.45f, 3.98f), new Vector3(1.7f, 0.12f, 0.06f), s_Trim);
-            Label("DELIVERIES  ->  TOP FLOOR", shell, new Vector3(-4.85f, 3.1f, 3.95f), Quaternion.identity, 0.22f, s_Trim.color);
+            Label("DELIVERIES  ->  TOP FLOOR", shell, new Vector3(-4.85f, 3.1f, 3.92f), Quaternion.identity, 0.22f, Palette.Wall);
 
             SetupUtil.Block("Back", shell, new Vector3(0, top / 2, 16.1f), new Vector3(12.4f, top, 0.2f), s_Wall);
-            SetupUtil.Block("West", shell, new Vector3(-6.1f, top / 2, 10.1f), new Vector3(0.2f, top, 12.2f), s_Wall);
+            SetupUtil.Block("West", shell, new Vector3(-6.1f, top / 2, 10.1f), new Vector3(0.2f, top, 12.2f), s_StairWall);
             SetupUtil.Block("East", shell, new Vector3(6.1f, top / 2, 10.1f), new Vector3(0.2f, top, 12.2f), s_Wall);
 
             // Ground floor of the stairwell (hallway).
             SetupUtil.Block("HallFloor", shell, new Vector3(-4f, 0.02f, 10.1f), new Vector3(4f, 0.04f, 11.8f), s_Floor);
 
             // Wall between the stairwell and the apartment block (x -2..-1.8).
-            SetupUtil.Block("Inner_Lower", shell, new Vector3(-1.9f, 3f, 10.1f), new Vector3(0.2f, 6f, 11.8f), s_Wall);
+            SetupUtil.Block("Inner_Lower", shell, new Vector3(-1.9f, 3f, 10.1f), new Vector3(0.2f, 6f, 11.8f), s_StairWall);
             SetupUtil.Block("Inner_Upper_South", shell, new Vector3(-1.9f, 7.5f, 8.6f), new Vector3(0.2f, 3f, 8.8f), s_Wall);
             SetupUtil.Block("Inner_Upper_North", shell, new Vector3(-1.9f, 7.5f, 15.3f), new Vector3(0.2f, 3f, 1.4f), s_Wall);
             SetupUtil.Block("Inner_Lintel", shell, new Vector3(-1.9f, 8.7f, 13.8f), new Vector3(0.2f, 0.6f, 1.6f), s_Wall);
@@ -148,7 +149,7 @@ namespace Freelancer.EditorTools
             SetupUtil.Block("TopLanding", stairs, new Vector3(-4f, 5.85f, 13.75f), new Vector3(4f, 0.3f, 4.5f), s_Floor);
 
             // Centre wall between the lanes, up past the top floor so it doubles as a railing.
-            SetupUtil.Block("CentreWall", stairs, new Vector3(-4f, 3.5f, 9f), new Vector3(0.2f, 7f, 5f), s_Wall);
+            SetupUtil.Block("CentreWall", stairs, new Vector3(-4f, 3.5f, 9f), new Vector3(0.2f, 7f, 5f), s_StairWall);
             // Railing so you can't step off the top landing into flight 2 (you can still drop a cake over it).
             SetupUtil.Block("TopRailing", stairs, new Vector3(-2.95f, 6.5f, 11.45f), new Vector3(1.9f, 1f, 0.1f), s_Trim);
         }
@@ -260,6 +261,18 @@ namespace Freelancer.EditorTools
             so.ApplyModifiedPropertiesWithoutUndo();
         }
 
+        static Material WorldTextMaterial()
+        {
+            const string path = SetupUtil.MaterialsDir + "/M_WorldText.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat == null)
+            {
+                mat = new Material(Shader.Find("Freelancer/WorldText"));
+                AssetDatabase.CreateAsset(mat, path);
+            }
+            return mat;
+        }
+
         /// <summary>World-space 3D text (TextMesh with the built-in font).</summary>
         static void Label(string text, Transform parent, Vector3 position, Quaternion rotation, float size, Color color)
         {
@@ -278,6 +291,13 @@ namespace Freelancer.EditorTools
             tm.color = color;
             // Readable by someone looking along the label's +z (rotation picks who that is).
             go.GetComponent<MeshRenderer>().sharedMaterial = font.material;
+            // Swap in a material that respects walls (the default one draws through everything).
+            var worldText = go.AddComponent<WorldText>();
+            var so = new SerializedObject(worldText);
+            so.FindProperty("material").objectReferenceValue = WorldTextMaterial();
+            so.ApplyModifiedPropertiesWithoutUndo();
+            worldText.enabled = false; // re-run OnEnable now that the material is set
+            worldText.enabled = true;
         }
     }
 }

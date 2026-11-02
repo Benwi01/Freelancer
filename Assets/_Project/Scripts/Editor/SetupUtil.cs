@@ -47,6 +47,17 @@ namespace Freelancer.EditorTools
             return mat;
         }
 
+        /// <summary>A glowing material (lamps, headlights). Bright enough to catch a little bloom.</summary>
+        public static Material Emissive(string name, Color color, float intensity = 2.2f)
+        {
+            var mat = Mat(name, color, 0.3f);
+            mat.EnableKeyword("_EMISSION");
+            mat.SetColor("_EmissionColor", color * intensity);
+            mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+            EditorUtility.SetDirty(mat);
+            return mat;
+        }
+
         /// <summary>A static greybox block (box collider, no rigidbody).</summary>
         public static GameObject Block(string name, Transform parent, Vector3 center, Vector3 size, Material mat,
             float yRotation = 0f)

@@ -62,6 +62,11 @@ namespace Freelancer.EditorTools
                 cam.nearClipPlane = 0.05f;
                 LookSetup.ConfigureCamera(cam);
 
+                // Throwaway frame: the first render after a rebuild can come out incomplete.
+                cam.transform.position = k_Views[0].pos;
+                cam.transform.LookAt(k_Views[0].lookAt);
+                Shoot(cam, "gig-view-warmup.png");
+
                 for (int i = 0; i < k_Views.Length; i++)
                 {
                     cam.transform.position = k_Views[i].pos;
