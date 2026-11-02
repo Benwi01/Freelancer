@@ -25,6 +25,7 @@ namespace Freelancer.EditorTools
             BuildMainMenuScene();
             HubSceneBuilder.BuildHubScene();
             GigSceneBuilder.BuildCakeDeliveryScene();
+            ReceptionSceneBuilder.BuildReceptionScene();
             ConfigureBuildSettings();
             EditorSceneManager.OpenScene(SetupUtil.MenuScenePath);
             Debug.Log("[Freelancer] Build All finished. Open MainMenu and press Play.");
@@ -91,8 +92,9 @@ namespace Freelancer.EditorTools
                 new EditorBuildSettingsScene(SetupUtil.MenuScenePath, true),
                 new EditorBuildSettingsScene(SetupUtil.HubScenePath, true),
                 new EditorBuildSettingsScene(SetupUtil.GigScenePath, true),
+                new EditorBuildSettingsScene(ReceptionSceneBuilder.ScenePath, true),
             };
-            Debug.Log("[Freelancer] Build settings: MainMenu, CakeDelivery.");
+            Debug.Log("[Freelancer] Build settings: MainMenu, Hub, CakeDelivery, ReceptionBar.");
         }
 
         public static NetworkPrefabsList GetOrCreatePrefabList()

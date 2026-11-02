@@ -7,7 +7,7 @@ using UnityEngine;
 namespace Freelancer.EditorTools
 {
     /// <summary>Builds the networked prefabs (player, props, cake) from primitives.</summary>
-    static class PrefabBuilder
+    static partial class PrefabBuilder
     {
         public const string PlayerPath = SetupUtil.PrefabsDir + "/Player.prefab";
         public const string BoxPath = SetupUtil.PrefabsDir + "/Prop_Box.prefab";
@@ -32,6 +32,7 @@ namespace Freelancer.EditorTools
             Register(BuildCake(topDebris, midDebris));
             Register(BuildGigDirector());
             Register(BuildCrewState());
+            BuildBarPrefabs();
 
             EditorUtility.SetDirty(list);
             AssetDatabase.SaveAssets();
@@ -166,6 +167,7 @@ namespace Freelancer.EditorTools
         {
             var root = new GameObject("GigDirector");
             root.AddComponent<NetworkObject>();
+            root.AddComponent<CakeObjective>();
             root.AddComponent<GigDirector>();
             return Save(root, GigDirectorPath);
         }

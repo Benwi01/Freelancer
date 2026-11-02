@@ -89,6 +89,20 @@ namespace Freelancer.EditorTools
         public static readonly Color Screen = Hex("EEF4FF");
         public static readonly Color Stain = Hex("7C9E99");
 
+        // Reception hall
+        public static readonly Color HallWall = Hex("F2E4D0");
+        public static readonly Color HallFloor = Hex("A87650");
+        public static readonly Color HallTrim = Hex("C9A35A");
+        public static readonly Color BarWood = Hex("6E4630");
+        public static readonly Color BarTop = Hex("3A2A24");
+        public static readonly Color DanceLight = Hex("F7F1E6");
+        public static readonly Color DanceDark = Hex("3A3550");
+        public static readonly Color Tablecloth = Hex("FBF7F0");
+        public static readonly Color Chair = Hex("D9C29A");
+        public static readonly Color Basement = Hex("8E8A82");
+        public static readonly Color BasementFloor = Hex("66625C");
+        public static readonly Color Neon = Hex("FF6FB0");
+
         static Color Hex(string hex)
         {
             ColorUtility.TryParseHtmlString("#" + hex, out var c);

@@ -5,8 +5,8 @@ using UnityEngine.UI;
 namespace Freelancer
 {
     /// <summary>
-    /// Gig HUD: timer, cake condition bar, briefing card, delivery progress and the results screen
-    /// (stars + Brenda's review). Reads the server-replicated GigDirector / CakeCondition state.
+    /// Gig HUD: timer, status meter, briefing card, progress, callouts and the results screen
+    /// (stars + the client's review). Reads the server-replicated GigDirector and its GigObjective.
     /// </summary>
     public class GigHud : MonoBehaviour
     {
@@ -16,6 +16,8 @@ namespace Freelancer
         Text m_Timer;
         Image m_ConditionFill;
         Text m_ConditionLabel;
+        Text m_StatusTitle;
+        Text m_Callout;
         Text m_Objective;
         Image m_SettleFill;
         GameObject m_SettleBar;
@@ -58,10 +60,11 @@ namespace Freelancer
             m_Timer.fontStyle = FontStyle.Bold;
             UiFactory.Place(m_Timer.rectTransform, new Vector2(0.5f, 1f), new Vector2(600, 90), new Vector2(0, -20));
 
-            // Cake condition, top left
-            var label = UiFactory.CreateText("CakeLabel", root, "CAKE", 26, TextAnchor.UpperLeft);
+            // Status meter, top left (cake condition, drinks served...)
+            var label = UiFactory.CreateText("StatusLabel", root, "", 26, TextAnchor.UpperLeft);
+            m_StatusTitle = label;
             UiFactory.Place(label.rectTransform, new Vector2(0f, 1f), new Vector2(420, 34), new Vector2(30, -24));
-            var barBg = UiFactory.CreatePanel("CakeBar", root, new Color(0, 0, 0, 0.6f));
+            var barBg = UiFactory.CreatePanel("StatusBar", root, new Color(0, 0, 0, 0.6f));
             UiFactory.Place(barBg.rectTransform, new Vector2(0f, 1f), new Vector2(420, 30), new Vector2(30, -60));
             m_ConditionFill = UiFactory.CreatePanel("Fill", barBg.transform, new Color(0.4f, 0.9f, 0.4f));
             SetupFill(m_ConditionFill);
@@ -78,6 +81,12 @@ namespace Freelancer
             m_SettleFill = UiFactory.CreatePanel("Fill", settleBg.transform, new Color(0.4f, 1f, 0.5f));
             SetupFill(m_SettleFill);
             m_SettleBar = settleBg.gameObject;
+
+            // Big event shout-outs ("LAST CALL!")
+            m_Callout = UiFactory.CreateText("Callout", root, "", 64);
+            m_Callout.fontStyle = FontStyle.Bold;
+            m_Callout.color = Gold;
+            UiFactory.Place(m_Callout.rectTransform, new Vector2(0.5f, 1f), new Vector2(1400, 90), new Vector2(0, -130));
 
             BuildBriefing(root);
             BuildResults(root);
@@ -110,14 +119,15 @@ namespace Freelancer
             app.fontStyle = FontStyle.Bold;
             UiFactory.Stretch(app.rectTransform);
 
+            var gig = GigCatalog.ByScene(gameObject.scene.name);
             var body = UiFactory.CreateText("Body", card.transform,
-                "<b><size=44>Cake Delivery</size></b>\n" +
-                "Client: <b>" + CakeReviews.Reviewer + "</b>  (rated 4.9)\n" +
-                "Pay: $40 + \"exposure\"\n\n" +
-                "\"Three-tier wedding cake. In the van. Up to the top floor. On the table. " +
-                "It is VERY expensive and VERY wobbly. Please do not be the freelancers from last time.\"\n\n" +
-                "<color=#ffcc66>WASD move · Shift sprint · Space jump · Hold LMB grab · RMB throw · Esc menu</color>\n" +
-                "Tip: the cake is heavy. Grab it from both sides.",
+                gig == null ? "" :
+                $"<b><size=44>{gig.Title}</size></b>\n" +
+                $"Client: <b>{gig.Reviewer}</b>\n" +
+                $"Pay: ${gig.Pay} + tips\n\n" +
+                gig.Briefing + "\n\n" +
+                "<color=#ffcc66>WASD move · Shift sprint · Space jump · Hold LMB grab · RMB throw · E use · Esc menu</color>\n" +
+                gig.Tips,
                 28, TextAnchor.UpperLeft);
             UiFactory.Place(body.rectTransform, new Vector2(0.5f, 1f), new Vector2(820, 400), new Vector2(0, -95));
 
@@ -202,6 +212,7 @@ namespace Freelancer
             {
                 m_Objective.text = "Waiting for the gig to start...";
                 m_SettleBar.SetActive(false);
+                m_Callout.text = "";
                 return;
             }
 
@@ -214,24 +225,23 @@ namespace Freelancer
                 : Color.white;
             m_BriefingCountdown.text = $"Clock starts in {Mathf.CeilToInt(gig.BriefingLeft)}...";
 
-            // Cake condition
-            float c = cake != null ? cake.Condition01 : (over ? gig.FinalCondition : 0f);
-            SetFill(m_ConditionFill, c);
-            m_ConditionFill.color = Color.Lerp(new Color(0.95f, 0.25f, 0.2f), new Color(0.4f, 0.9f, 0.4f), c);
-            m_ConditionLabel.text = cake != null
-                ? $"{Mathf.CeilToInt(c * 100)}%   ({cake.TiersLeft}/{cake.TierCount} tiers)"
-                : "no cake?!";
+            // Status meter
+            var objective = gig.Objective;
+            objective.Status(out string title, out float fill, out string value, out Color color);
+            m_StatusTitle.text = title;
+            SetFill(m_ConditionFill, fill);
+            m_ConditionFill.color = color;
+            m_ConditionLabel.text = value;
 
-            // Objective & delivery progress
-            m_SettleBar.SetActive(gig.Phase == GigPhase.Running && gig.SettleProgress > 0f);
-            SetFill(m_SettleFill, gig.SettleProgress);
-            m_Objective.text = gig.Phase switch
-            {
-                GigPhase.Briefing => "",
-                GigPhase.Running when gig.SettleProgress > 0f => "Let go... don't touch it... Brenda is watching...",
-                GigPhase.Running => "Get the cake from the van to the table on the top floor. Set it down upright and LET GO.",
-                _ => "",
-            };
+            // Objective & "almost done" progress
+            float progress = objective.Progress;
+            m_SettleBar.SetActive(gig.Phase == GigPhase.Running && progress > 0f);
+            SetFill(m_SettleFill, progress);
+            m_Objective.text = gig.Phase == GigPhase.Running ? objective.ObjectiveText(gig) : "";
+            string callout = gig.Phase == GigPhase.Running ? objective.Callout : "";
+            m_Callout.text = callout;
+            if (callout.Length > 0)
+                m_Callout.rectTransform.localScale = Vector3.one * (1f + 0.06f * Mathf.Sin(Time.time * 8f));
 
             if (over) UpdateResults(gig);
 
@@ -245,20 +255,15 @@ namespace Freelancer
             bool delivered = gig.Phase == GigPhase.Delivered;
             m_ResultTitle.text = delivered ? "GIG COMPLETE" : "GIG FAILED";
             m_ResultTitle.color = delivered ? new Color(0.5f, 1f, 0.5f) : new Color(1f, 0.4f, 0.35f);
-            m_ResultDetail.text = gig.FailReason switch
-            {
-                GigFailReason.TimeUp => "Out of time. The wedding started without the cake.",
-                GigFailReason.CakeRuined => "The cake is no longer a cake.",
-                _ => $"Delivered with {Mathf.CeilToInt(gig.TimeLeft)}s left, cake at {Mathf.CeilToInt(gig.FinalCondition * 100)}%.",
-            };
+            m_ResultDetail.text = gig.Objective.ResultDetail(gig);
             for (int i = 0; i < m_Stars.Length; i++)
                 m_Stars[i].color = i < gig.Stars ? Gold : Dim;
-            m_Review.text = $"\"{CakeReviews.Get(gig.ReviewIndex)}\"\n<size=24>— {CakeReviews.Reviewer}</size>";
+            m_Review.text = $"\"{GigReviews.Get(gig.Gig, gig.ReviewIndex)}\"\n<size=24>— {gig.Gig?.Reviewer}</size>";
 
             int funds = CrewState.Current != null ? CrewState.Current.Money : 0;
             m_Money.text = delivered
                 ? $"Pay <b>${gig.Pay}</b>  +  Tip <b>${gig.Tip}</b>  =  <color=#7CFF7C><b>${gig.Pay + gig.Tip}</b></color>        Crew funds: <b>${funds}</b>"
-                : $"No cake, no cash.        Crew funds: <b>${funds}</b>";
+                : $"{gig.Objective.NoPayLine}        Crew funds: <b>${funds}</b>";
             m_NewBestText.gameObject.SetActive(delivered && gig.NewBest);
 
             bool isHost = NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer;

@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 7594662232467615295}
   - component: {fileID: 8651447567305930313}
+  - component: {fileID: 4677660257030173563}
   - component: {fileID: 7369611729558793075}
   m_Layer: 0
   m_Name: GigDirector
@@ -60,6 +61,22 @@ MonoBehaviour:
   AutoObjectParentSync: 1
   SyncOwnerTransformWhenParented: 1
   AllowOwnerToParent: 0
+--- !u!114 &4677660257030173563
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2004387211372042739}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f9ab2df22620c3943aa50a0a0e98bc15, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Freelancer.CakeObjective
+  ShowTopMostFoldoutHeaderGroup: 1
+  settleSeconds: 1.5
+  settleMaxSpeed: 0.35
+  uprightDot: 0.8
 --- !u!114 &7369611729558793075
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -75,6 +92,3 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   briefingSeconds: 10
   gigSeconds: 180
-  settleSeconds: 1.5
-  settleMaxSpeed: 0.35
-  uprightDot: 0.8

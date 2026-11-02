@@ -59,6 +59,24 @@ namespace Freelancer.EditorTools
             return mat;
         }
 
+        /// <summary>A see-through material (glasses, windows you can see drinks through). Alpha comes from the colour.</summary>
+        public static Material Transparent(string name, Color color, float smoothness = 0.85f)
+        {
+            var mat = Mat(name, color, smoothness);
+            mat.SetFloat("_Surface", 1f);
+            mat.SetFloat("_Blend", 0f);
+            mat.SetOverrideTag("RenderType", "Transparent");
+            mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            mat.SetFloat("_SrcBlendAlpha", (float)UnityEngine.Rendering.BlendMode.One);
+            mat.SetFloat("_DstBlendAlpha", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            mat.SetFloat("_ZWrite", 0f);
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            EditorUtility.SetDirty(mat);
+            return mat;
+        }
+
         /// <summary>A static greybox block (box collider, no rigidbody).</summary>
         public static GameObject Block(string name, Transform parent, Vector3 center, Vector3 size, Material mat,
             float yRotation = 0f)

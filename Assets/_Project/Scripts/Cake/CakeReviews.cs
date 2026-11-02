@@ -4,7 +4,6 @@ namespace Freelancer
     public static class CakeReviews
     {
         public const string Reviewer = "Brenda W., Mother of the Bride";
-        public const int PerRating = 3;
 
         public static readonly string[] All =
         {
@@ -40,14 +39,5 @@ namespace Freelancer
             "Perfect cake, record time. The bride wept with joy. One of the freelancers also wept, unclear why. Lovely day.",
             "Absolutely perfect delivery. I'm suspicious. Leaving five stars before they break something on the way out.",
         };
-
-        public static int PickIndex(int stars)
-        {
-            int bucket = UnityEngine.Mathf.Clamp(stars, 1, 5) - 1;
-            return bucket * PerRating + UnityEngine.Random.Range(0, PerRating);
-        }
-
-        public static string Get(int index) =>
-            index >= 0 && index < All.Length ? All[index] : "No comment. (Brenda is still processing.)";
     }
 }

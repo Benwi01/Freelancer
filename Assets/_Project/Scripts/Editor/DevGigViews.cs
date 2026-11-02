@@ -34,6 +34,24 @@ namespace Freelancer.EditorTools
             (new Vector3(-1f, 1.65f, 1.5f), new Vector3(4.5f, 1.2f, -1f)),        // kitchenette
         };
 
+        static readonly (Vector3 pos, Vector3 lookAt)[] k_BarViews =
+        {
+            (new Vector3(-2.5f, 1.65f, 6.6f), new Vector3(-0.5f, 1.1f, 3.5f)),    // behind the bar, toward the guests
+            (new Vector3(-4.5f, 1.65f, 6.4f), new Vector3(-6.3f, 1.1f, 4.8f)),    // the taps
+            (new Vector3(6f, 1.7f, -6.5f), new Vector3(-3f, 1.2f, 4.5f)),         // hall from the dance floor
+            (new Vector3(-8.5f, 1.7f, -7f), new Vector3(4f, 1.2f, -2f)),          // tables and dance floor
+            (new Vector3(6.5f, 1.7f, 6.8f), new Vector3(6.5f, -0.8f, 12.5f)),     // staff door, down the stairs
+            (new Vector3(6.5f, -1.3f, 13.6f), new Vector3(4.5f, -2.6f, 18.5f)),   // basement kegs
+            (new Vector3(1f, 1.8f, -1f), new Vector3(-4.4f, 1f, 7.5f)),           // guest side, toward the back counter
+        };
+
+        static readonly (Vector3 pos, float yaw, PlayerLook look)[] k_BarCrew =
+        {
+            (new Vector3(-6.4f, 0.02f, 5.9f), 200f, new PlayerLook { Color = 0, Hat = 1, Eyes = 0, Mouth = 0, Outfit = 1 }),
+            (new Vector3(-1.4f, 0.02f, 5.9f), 170f, new PlayerLook { Color = 1, Hat = 0, Eyes = 1, Mouth = 1, Outfit = 0 }),
+            (new Vector3(5.2f, -2.98f, 17.2f), 20f, new PlayerLook { Color = 3, Hat = 2, Eyes = 2, Mouth = 0, Outfit = 1 }),
+        };
+
         static readonly (Vector3 pos, float yaw, PlayerLook look)[] k_GigCrew =
         {
             (new Vector3(-1.2f, 0.1f, -2.8f), 200f, new PlayerLook { Color = 0, Hat = 1, Eyes = 0, Mouth = 0, Outfit = 1 }),
@@ -55,8 +73,11 @@ namespace Freelancer.EditorTools
         [MenuItem("Freelancer/Setup/Dev/Capture Hub Views", priority = 105)]
         static void CaptureHub() => Capture(SetupUtil.HubScenePath, "hub-view", k_HubViews, k_HubCrew, cake: false);
 
+        [MenuItem("Freelancer/Setup/Dev/Capture Bar Views", priority = 106)]
+        static void CaptureBar() => Capture(ReceptionSceneBuilder.ScenePath, "bar-view", k_BarViews, k_BarCrew, cake: false, spawners: true);
+
         static void Capture(string scenePath, string prefix, (Vector3 pos, Vector3 lookAt)[] views,
-            (Vector3 pos, float yaw, PlayerLook look)[] crew, bool cake)
+            (Vector3 pos, float yaw, PlayerLook look)[] crew, bool cake, bool spawners = false)
         {
             var scene = EditorSceneManager.GetActiveScene();
             if (scene.path != scenePath)
@@ -83,6 +104,33 @@ namespace Freelancer.EditorTools
                         AssetDatabase.LoadAssetAtPath<GameObject>(PrefabBuilder.CakePath), scene);
                     cakeGo.transform.position = new Vector3(0, 0.62f, -8.4f);
                     temp.Add(cakeGo);
+                }
+
+                if (spawners)
+                {
+                    // Stand-ins for what the server spawns at runtime, plus a guest at every bar spot.
+                    foreach (var sp in Object.FindObjectsByType<ServerSpawner>())
+                    {
+                        var prefab = new SerializedObject(sp).FindProperty("prefab").objectReferenceValue as Unity.Netcode.NetworkObject;
+                        if (prefab == null || prefab.GetComponent<GigDirector>() != null) continue;
+                        var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab.gameObject, scene);
+                        go.transform.SetPositionAndRotation(sp.transform.position, sp.transform.rotation);
+                        temp.Add(go);
+                    }
+                    var guest = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabBuilder.GuestPath);
+                    foreach (var slot in Object.FindObjectsByType<GuestSlot>())
+                    {
+                        var go = (GameObject)PrefabUtility.InstantiatePrefab(guest, scene);
+                        go.transform.SetPositionAndRotation(slot.transform.position, slot.transform.rotation);
+                        temp.Add(go);
+                    }
+                    var glassPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabBuilder.GlassPath);
+                    foreach (var gp in new[] { new Vector3(-6.8f, 1.07f, 4.9f), new Vector3(-0.8f, 1.05f, 4.6f), new Vector3(-4.2f, 1f, 7.5f) })
+                    {
+                        var go = (GameObject)PrefabUtility.InstantiatePrefab(glassPrefab, scene);
+                        go.transform.position = gp;
+                        temp.Add(go);
+                    }
                 }
 
                 var camGo = new GameObject("DevViewCamera", typeof(Camera));

@@ -13,5 +13,7 @@ namespace Freelancer
         None,
         TimeUp,
         CakeRuined,
+        NoDrinksServed,
+        Fired,
     }
 }
