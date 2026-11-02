@@ -204,7 +204,6 @@ namespace Freelancer.EditorTools
             SetupUtil.Block("CouchBack", apt, new Vector3(4.6f, 6.8f, 5.75f), new Vector3(2.4f, 1.2f, 0.25f), couch);
             SetupUtil.Block("Bookshelf", apt, new Vector3(0.2f, 7f, 15.7f), new Vector3(1.6f, 2f, 0.4f), wood);
 
-            Label("Brenda's Apartment", apt, new Vector3(-2.04f, 8.68f, 13.8f), Quaternion.Euler(0, 90, 0), 0.09f, Palette.PartyWhite, Palette.Trim);
         }
 
         // ---------- Gameplay objects ----------

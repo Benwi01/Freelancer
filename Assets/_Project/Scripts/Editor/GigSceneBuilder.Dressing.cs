@@ -234,10 +234,39 @@ namespace Freelancer.EditorTools
             Lamp(s, new Vector3(-3f, 6.2f, 5f), 6f, 1.6f);
             Lamp(s, new Vector3(-4.6f, 8.2f, 13.8f), 6.5f, 1.8f);
 
-            // Floor signs, getting more apologetic.
-            Label("FLOOR 1  (keep going)", s, new Vector3(-5.96f, 3.3f, 12.6f), Quaternion.Euler(0f, -90f, 0f), 0.09f, Palette.Trim, Palette.PartyWhite);
-            Label("FLOOR 2  (sorry)", s, new Vector3(-4.6f, 5.3f, 4.24f), Quaternion.Euler(0f, 180f, 0f), 0.09f, Palette.Trim, Palette.PartyWhite);
-            Label("FLOOR 3  (Brenda)", s, new Vector3(-5.96f, 7.3f, 12.6f), Quaternion.Euler(0f, -90f, 0f), 0.09f, Palette.Trim, Palette.PartyWhite);
+            // Floor numbers where the stairs arrive.
+            Label("1", s, new Vector3(-5.96f, 3.4f, 12.4f), Quaternion.Euler(0f, -90f, 0f), 0.32f, Palette.Trim, Palette.PartyWhite);
+            Label("2", s, new Vector3(-5.2f, 5.4f, 4.24f), Quaternion.Euler(0f, 180f, 0f), 0.32f, Palette.Trim, Palette.PartyWhite);
+            Label("3", s, new Vector3(-5.96f, 7.4f, 12.4f), Quaternion.Euler(0f, -90f, 0f), 0.32f, Palette.Trim, Palette.PartyWhite);
+
+            // Neighbours' front doors (closed) on every level. Yaw turns the door to face out of its wall.
+            //   inner wall x = -2.0 faces -x (yaw -90), west wall x = -6.0 faces +x (yaw 90), back wall z = 16 faces -z (yaw 180)
+            Door(s, new Vector3(-2f, 0.04f, 5.35f), -90f, "G1", 0); // hall floor top is at 0.04
+            Door(s, new Vector3(-3.2f, 2f, 16f), 180f, "1A", 1);
+            Door(s, new Vector3(-2f, 2f, 14.6f), -90f, "1B", 2);
+            Door(s, new Vector3(-2f, 4f, 5.35f), -90f, "2A", 3);
+            Door(s, new Vector3(-6f, 4f, 5.35f), 90f, "2B", 4);
+            Door(s, new Vector3(-4.2f, 6f, 16f), 180f, "3A", 1);
+
+            // Brenda's door (3B) stands open: frame on the landing side, the door leaf swung into the flat.
+            var frame = SetupUtil.Mat("Stone", Palette.Stone);
+            Box("BrendaJambS", s, new Vector3(-2.03f, 7.2f, 12.94f), new Vector3(0.06f, 2.4f, 0.12f), frame);
+            Box("BrendaJambN", s, new Vector3(-2.03f, 7.2f, 14.66f), new Vector3(0.06f, 2.4f, 0.12f), frame);
+            Box("BrendaHead", s, new Vector3(-2.03f, 8.45f, 13.8f), new Vector3(0.06f, 0.12f, 1.84f), frame);
+            Box("BrendaDoorLeaf", s, new Vector3(-1.77f, 7.15f, 15.3f), new Vector3(0.05f, 2.3f, 1.35f),
+                SetupUtil.Mat("Door" + 2, Palette.Doors[2]));
+            Label("3B", s, new Vector3(-2.07f, 8.72f, 13.8f), Quaternion.Euler(0f, 90f, 0f), 0.12f, Palette.Trim, Palette.Brass);
+            Label("B. WHITMORE", s, new Vector3(-2.04f, 7.6f, 12.4f), Quaternion.Euler(0f, 90f, 0f), 0.045f, Palette.Trim, Palette.PartyWhite);
+
+            // Mailboxes in the ground-floor hall.
+            for (int row = 0; row < 2; row++)
+            for (int col = 0; col < 3; col++)
+            {
+                var mp = new Vector3(-5.95f, 1.15f + row * 0.32f, 4.75f + col * 0.42f);
+                Box("Mailbox", s, mp, new Vector3(0.08f, 0.28f, 0.38f), SetupUtil.Mat("Metal", Palette.Metal, 0.4f));
+                Box("MailboxSlot", s, mp + new Vector3(0.045f, 0.06f, 0f), new Vector3(0.01f, 0.03f, 0.22f),
+                    SetupUtil.Mat("Brass", Palette.Brass, 0.6f));
+            }
 
             Box("WelcomeMat", s, new Vector3(-2.6f, 6.007f, 13.8f), new Vector3(0.6f, 0.012f, 1f),
                 SetupUtil.Mat("Doormat", Palette.Doormat));
@@ -333,6 +362,33 @@ namespace Freelancer.EditorTools
 
             Label("CONGRATS KAYLEIGH & TODD!", a, new Vector3(3.2f, 8.2f, 15.96f), Quaternion.identity, 0.15f, Palette.PartyWhite,
                 Palette.PartyPink);
+        }
+
+        /// <summary>
+        /// A closed front door on a wall: frame, panel, handle, peephole, number plate and doormat.
+        /// <paramref name="floorPoint"/> is where the door meets the floor on the wall face;
+        /// yaw turns local +z (out of the wall) toward the corridor.
+        /// </summary>
+        static void Door(Transform parent, Vector3 floorPoint, float yaw, string number, int colour)
+        {
+            var p = SetupUtil.Empty("Door_" + number, parent, floorPoint).transform;
+            p.localRotation = Quaternion.Euler(0f, yaw, 0f);
+            Box("Frame", p, new Vector3(0f, 1.1f, 0.03f), new Vector3(1.16f, 2.22f, 0.06f), s_Stone);
+            Box("Panel", p, new Vector3(0f, 1.03f, 0.06f), new Vector3(0.96f, 2.04f, 0.04f),
+                SetupUtil.Mat("Door" + colour, Palette.Doors[colour]));
+            Box("PanelInsetTop", p, new Vector3(0f, 1.5f, 0.083f), new Vector3(0.66f, 0.7f, 0.01f),
+                SetupUtil.Mat("Door" + colour, Palette.Doors[colour]));
+            Box("PanelInsetLow", p, new Vector3(0f, 0.55f, 0.083f), new Vector3(0.66f, 0.6f, 0.01f),
+                SetupUtil.Mat("Door" + colour, Palette.Doors[colour]));
+            var brass = SetupUtil.Mat("Brass", Palette.Brass, 0.6f);
+            Vis(LowPolyMeshes.Sphere, "Handle", p, new Vector3(0.36f, 1f, 0.11f), Vector3.one * 0.07f, brass);
+            Vis(LowPolyMeshes.Sphere, "Peephole", p, new Vector3(0f, 1.55f, 0.085f), Vector3.one * 0.035f, brass);
+            Box("Doormat", p, new Vector3(0f, 0.007f, 0.45f), new Vector3(0.9f, 0.012f, 0.55f),
+                SetupUtil.Mat("Doormat", Palette.Doormat));
+
+            // Number plate on the door, readable from the corridor.
+            Vector3 platePos = p.TransformPoint(new Vector3(0f, 1.95f, 0.12f));
+            Label(number, parent, platePos, p.rotation * Quaternion.Euler(0f, 180f, 0f), 0.08f, Palette.Trim, Palette.Brass);
         }
 
         /// <summary>A warm point light (no shadows, cheap).</summary>

@@ -20,6 +20,8 @@ namespace Freelancer.EditorTools
             (new Vector3(-0.8f, 7.65f, 8f), new Vector3(3.5f, 6.8f, 12f)),      // apartment
             (new Vector3(-3.6f, 7.65f, 11.6f), new Vector3(2f, 7f, 13.6f)),     // top landing, into the apartment
             (new Vector3(4f, 1.5f, -8.5f), new Vector3(0.5f, 1.3f, -9f)),        // van side
+            (new Vector3(-5.3f, 3.65f, 12.2f), new Vector3(-2.3f, 2.9f, 15.4f)), // landing 1 doors
+            (new Vector3(-4.6f, 1.65f, 6.3f), new Vector3(-2f, 1.1f, 4.9f)),     // ground hall door
             (new Vector3(16f, 14f, -18f), new Vector3(0f, 3f, 4f)),             // overview
         };
 

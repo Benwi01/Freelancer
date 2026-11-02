@@ -58,6 +58,8 @@ namespace Freelancer.EditorTools
         public static readonly Color Hydrant = Hex("D9413A");
         public static readonly Color Mailbox = Hex("3C6FB5");
         public static readonly Color Doormat = Hex("6B4A35");
+        public static readonly Color Brass = Hex("D9A93F");
+        public static readonly Color[] Doors = { Hex("2F4A7A"), Hex("3E7A5A"), Hex("8A3B3B"), Hex("2F7A82"), Hex("6B4E8C") };
         public static readonly Color[] Neighbours =
             { Hex("8FB8D6"), Hex("F0A77A"), Hex("A9CF8F"), Hex("E79BB5"), Hex("F2D27A"), Hex("B9A3D9") };
 
