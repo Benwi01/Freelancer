@@ -10,39 +10,41 @@ namespace Freelancer
     /// </summary>
     public class CustomizePanel : MonoBehaviour
     {
-        static readonly Color k_PreviewBackground = new(0.2f, 0.17f, 0.3f);
+        static Color PreviewBackground => MainMenuUI.CardColor; // character stands right on the card
 
         PlayerLook m_Look;
         CharacterPreview m_Preview;
         readonly System.Collections.Generic.List<Action> m_Refreshers = new();
 
-        public void Build(Transform canvas, GameObject playerPrefab, Vector2 offset)
+        public void Build(Transform canvas, GameObject playerPrefab, Vector2 anchor, Vector2 offset)
         {
             m_Look = PlayerLook.LoadLocal();
             m_Look.SaveLocal(); // keep the random first-time colour stable
 
-            var panel = UiFactory.CreatePanel("CustomizePanel", canvas, UiFactory.PanelColor);
-            UiFactory.Place(panel.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(560, 680), offset);
+            var panel = UiFactory.CreatePanel("CustomizePanel", canvas, MainMenuUI.CardColor);
+            UiFactory.Round(panel, 24f);
+            UiFactory.Place(panel.rectTransform, anchor, new Vector2(560, 760), offset);
 
             var column = UiFactory.CreateColumn("Rows", panel.transform, 8);
             UiFactory.Stretch(column);
             var pad = column.GetComponent<VerticalLayoutGroup>();
-            pad.padding = new RectOffset(20, 20, 16, 20);
+            pad.padding = new RectOffset(28, 28, 22, 26);
 
-            var header = UiFactory.CreateText("Header", column, "YOUR FREELANCER", 34);
+            var header = UiFactory.CreateText("Header", column, "YOUR FREELANCER", 24, TextAnchor.MiddleLeft);
             header.fontStyle = FontStyle.Bold;
-            UiFactory.SetPreferredHeight(header, 44);
+            header.color = new Color(1f, 0.62f, 0.3f);
+            UiFactory.SetPreferredHeight(header, 30);
 
             var previewImage = UiFactory.CreateRect("Preview", column).gameObject.AddComponent<RawImage>();
-            UiFactory.SetPreferredHeight(previewImage, 300);
+            UiFactory.SetPreferredHeight(previewImage, 340);
             if (playerPrefab != null)
             {
                 m_Preview = new GameObject("CharacterPreview").AddComponent<CharacterPreview>();
                 m_Preview.transform.SetParent(transform, false);
-                m_Preview.Init(playerPrefab, k_PreviewBackground);
+                m_Preview.Init(playerPrefab, PreviewBackground);
                 previewImage.texture = m_Preview.Texture;
             }
-            else previewImage.color = k_PreviewBackground;
+            else previewImage.color = PreviewBackground;
 
             AddRow(column, "Colour", PlayerLook.ColorNames, () => m_Look.Color, v => m_Look.Color = v);
             AddRow(column, "Hat", PlayerLook.HatNames, () => m_Look.Hat, v => m_Look.Hat = v);
@@ -50,9 +52,9 @@ namespace Freelancer
             AddRow(column, "Mouth", PlayerLook.MouthNames, () => m_Look.Mouth, v => m_Look.Mouth = v);
             AddRow(column, "Outfit", PlayerLook.OutfitNames, () => m_Look.Outfit, v => m_Look.Outfit = v);
 
-            var random = UiFactory.CreateButton("Randomize", column, "Surprise me", Randomize);
-            random.GetComponentInChildren<Text>().fontSize = 28;
-            UiFactory.SetPreferredHeight(random, 52);
+            var random = UiFactory.Ghost(UiFactory.CreateButton("Randomize", column, "Surprise me", Randomize));
+            random.GetComponentInChildren<Text>().fontSize = 26;
+            UiFactory.SetPreferredHeight(random, 56);
 
             Changed();
         }
@@ -60,7 +62,7 @@ namespace Freelancer
         void AddRow(Transform parent, string label, string[] names, Func<byte> get, Action<byte> set)
         {
             var row = UiFactory.CreateRect(label + "Row", parent);
-            UiFactory.SetPreferredHeight(row, 50);
+            UiFactory.SetPreferredHeight(row, 52);
             var layout = row.gameObject.AddComponent<HorizontalLayoutGroup>();
             layout.spacing = 8;
             layout.childControlWidth = layout.childControlHeight = true;
@@ -73,14 +75,18 @@ namespace Freelancer
                 Changed();
             }
 
-            var prev = UiFactory.CreateButton("Prev", row, "<", () => Step(-1));
-            Width(prev, 60);
+            var caption = UiFactory.CreateText("Label", row, label.ToUpperInvariant(), 20, TextAnchor.MiddleLeft);
+            caption.color = new Color(1f, 1f, 1f, 0.45f);
+            Width(caption, 110);
+            var prev = UiFactory.Ghost(UiFactory.CreateButton("Prev", row, "<", () => Step(-1)));
+            Width(prev, 52);
             var text = UiFactory.CreateText("Value", row, "", 28);
+            text.fontStyle = FontStyle.Bold;
             Width(text, 0, flexible: true);
-            var next = UiFactory.CreateButton("Next", row, ">", () => Step(1));
-            Width(next, 60);
+            var next = UiFactory.Ghost(UiFactory.CreateButton("Next", row, ">", () => Step(1)));
+            Width(next, 52);
 
-            m_Refreshers.Add(() => text.text = $"{label}:  <b>{names[get() % names.Length]}</b>");
+            m_Refreshers.Add(() => text.text = names[get() % names.Length]);
         }
 
         static void Width(Component c, float width, bool flexible = false)
