@@ -40,10 +40,27 @@ namespace Freelancer
             Instance = this;
         }
 
+        void Start()
+        {
+            // Covers local (no Relay) games too: if the connection drops, go back to the menu.
+            if (NetworkManager.Singleton != null)
+                NetworkManager.Singleton.OnClientStopped += OnClientStopped;
+        }
+
         void OnDestroy()
         {
             if (Instance == this) Instance = null;
+            if (NetworkManager.Singleton != null)
+                NetworkManager.Singleton.OnClientStopped -= OnClientStopped;
         }
+
+        void OnClientStopped(bool wasHost)
+        {
+            if (!m_Leaving && SceneManager.GetActiveScene().name != menuSceneName)
+                _ = LeaveAsync();
+        }
+
+        bool m_Leaving;
 
         void SetStatus(string text)
         {
@@ -174,6 +191,14 @@ namespace Freelancer
 
         /// <summary>Leave the session, stop Netcode and go back to the main menu.</summary>
         public async Task LeaveAsync()
+        {
+            if (m_Leaving) return;
+            m_Leaving = true;
+            try { await LeaveInternalAsync(); }
+            finally { m_Leaving = false; }
+        }
+
+        async Task LeaveInternalAsync()
         {
             var session = ActiveSession;
             ActiveSession = null;

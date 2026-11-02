@@ -24,9 +24,147 @@ namespace Freelancer.EditorTools
             Register(BuildProp(BucketPath, "paint bucket", PrimitiveType.Cylinder, new Vector3(0.35f, 0.22f, 0.35f), 3f,
                 SetupUtil.Mat("PaintBucket", new Color(0.3f, 0.75f, 0.85f))));
 
+            var topDebris = BuildTierDebris(TopTierPath, "cake tier (top)", CakeTiers[2], 4f);
+            var midDebris = BuildTierDebris(MidTierPath, "cake tier (middle)", CakeTiers[1], 8f);
+            Register(topDebris);
+            Register(midDebris);
+            Register(BuildCake(topDebris, midDebris));
+            Register(BuildGigDirector());
+
             EditorUtility.SetDirty(list);
             AssetDatabase.SaveAssets();
             Debug.Log("[Freelancer] Prefabs built.");
+        }
+
+        // ---------- Cake ----------
+
+        public const string CakePath = SetupUtil.PrefabsDir + "/WeddingCake.prefab";
+        public const string TopTierPath = SetupUtil.PrefabsDir + "/CakeTier_Top.prefab";
+        public const string MidTierPath = SetupUtil.PrefabsDir + "/CakeTier_Middle.prefab";
+        public const string GigDirectorPath = SetupUtil.PrefabsDir + "/GigDirector.prefab";
+
+        /// <summary>Radius and height of each tier, bottom first.</summary>
+        static readonly (float radius, float height)[] CakeTiers = { (0.55f, 0.4f), (0.4f, 0.34f), (0.27f, 0.3f) };
+        const float BoardHeight = 0.06f;
+
+        static Material Frosting => SetupUtil.Mat("Frosting", new Color(0.98f, 0.96f, 0.9f), 0.5f);
+        static Material Icing => SetupUtil.Mat("PinkIcing", new Color(0.97f, 0.6f, 0.72f), 0.5f);
+
+        static GameObject BuildCake(GameObject topDebris, GameObject midDebris)
+        {
+            var root = new GameObject("WeddingCake");
+
+            var board = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            board.name = "Board";
+            board.transform.SetParent(root.transform, false);
+            board.transform.localPosition = new Vector3(0, BoardHeight / 2f, 0);
+            board.transform.localScale = new Vector3(1.3f, BoardHeight, 1.3f);
+            board.GetComponent<Renderer>().sharedMaterial = SetupUtil.Mat("CakeBoard", new Color(0.8f, 0.82f, 0.86f), 0.8f);
+
+            float y = BoardHeight;
+            var tiers = new GameObject[CakeTiers.Length];
+            var visuals = new Transform[CakeTiers.Length];
+            for (int i = 0; i < CakeTiers.Length; i++)
+            {
+                var (r, h) = CakeTiers[i];
+                var tier = new GameObject("Tier" + (i + 1));
+                tier.transform.SetParent(root.transform, false);
+                tier.transform.localPosition = new Vector3(0, y + h / 2f, 0);
+                AddCylinderCollider(tier, r, h);
+                visuals[i] = BuildTierVisual(tier.transform, r, h, topper: i == CakeTiers.Length - 1);
+                tiers[i] = tier;
+                y += h;
+            }
+
+            MakeNetworkedPhysics(root, 45f, "wedding cake");
+            var rb = root.GetComponent<Rigidbody>();
+            rb.angularDamping = 0.8f;
+
+            // Heavy: one player can drag it, two can carry it.
+            var grab = new SerializedObject(root.GetComponent<GrabbableObject>());
+            grab.FindProperty("maxForcePerHolder").floatValue = 380f;
+            grab.FindProperty("maxThrowImpulse").floatValue = 60f;
+            grab.ApplyModifiedPropertiesWithoutUndo();
+
+            var knock = new SerializedObject(root.GetComponent<ImpactKnockdown>());
+            knock.FindProperty("minSpeed").floatValue = 4.5f;
+            knock.ApplyModifiedPropertiesWithoutUndo();
+
+            var cond = root.AddComponent<CakeCondition>();
+            var so = new SerializedObject(cond);
+            SetObjects(so.FindProperty("detachableTiers"), tiers[2], tiers[1]);
+            SetObjects(so.FindProperty("tierDebrisPrefabs"),
+                topDebris.GetComponent<NetworkObject>(), midDebris.GetComponent<NetworkObject>());
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            var wobble = root.AddComponent<CakeWobble>();
+            so = new SerializedObject(wobble);
+            SetObjects(so.FindProperty("tierVisuals"), visuals[0], visuals[1], visuals[2]);
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            return Save(root, CakePath);
+        }
+
+        static GameObject BuildTierDebris(string path, string displayName, (float radius, float height) size, float mass)
+        {
+            var root = new GameObject(System.IO.Path.GetFileNameWithoutExtension(path));
+            AddCylinderCollider(root, size.radius, size.height);
+            BuildTierVisual(root.transform, size.radius, size.height, topper: path == TopTierPath);
+            MakeNetworkedPhysics(root, mass, displayName);
+            return Save(root, path);
+        }
+
+        /// <summary>Frosted cylinder with a pink ring; optional bride-and-groom topper.</summary>
+        static Transform BuildTierVisual(Transform parent, float r, float h, bool topper)
+        {
+            var visual = SetupUtil.Empty("Visual", parent, Vector3.zero).transform;
+            SetupUtil.Visual(PrimitiveType.Cylinder, "Sponge", visual, Vector3.zero,
+                new Vector3(r * 2f, h / 2f, r * 2f), Frosting);
+            SetupUtil.Visual(PrimitiveType.Cylinder, "Ring", visual, new Vector3(0, -h / 2f + 0.04f, 0),
+                new Vector3(r * 2f + 0.04f, 0.03f, r * 2f + 0.04f), Icing);
+            SetupUtil.Visual(PrimitiveType.Cylinder, "TopRing", visual, new Vector3(0, h / 2f - 0.01f, 0),
+                new Vector3(r * 2f + 0.02f, 0.015f, r * 2f + 0.02f), Icing);
+            if (topper)
+            {
+                var suit = SetupUtil.Mat("TopperSuit", new Color(0.12f, 0.12f, 0.15f));
+                SetupUtil.Visual(PrimitiveType.Capsule, "Groom", visual, new Vector3(-0.07f, h / 2f + 0.09f, 0),
+                    new Vector3(0.07f, 0.09f, 0.07f), suit);
+                SetupUtil.Visual(PrimitiveType.Capsule, "Bride", visual, new Vector3(0.07f, h / 2f + 0.09f, 0),
+                    new Vector3(0.08f, 0.09f, 0.08f), Frosting);
+            }
+            return visual;
+        }
+
+        static void AddCylinderCollider(GameObject go, float r, float h)
+        {
+            var temp = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            var mesh = temp.GetComponent<MeshFilter>().sharedMesh;
+            Object.DestroyImmediate(temp);
+
+            // Cylinder primitive is 2 units tall and 1 wide; use a scaled child to fit.
+            var col = new GameObject("Collider");
+            col.transform.SetParent(go.transform, false);
+            col.transform.localScale = new Vector3(r * 2f, h / 2f, r * 2f);
+            var mc = col.AddComponent<MeshCollider>();
+            mc.sharedMesh = mesh;
+            mc.convex = true;
+        }
+
+        static void SetObjects(SerializedProperty array, params Object[] values)
+        {
+            array.arraySize = values.Length;
+            for (int i = 0; i < values.Length; i++)
+                array.GetArrayElementAtIndex(i).objectReferenceValue = values[i];
+        }
+
+        // ---------- Gig ----------
+
+        static GameObject BuildGigDirector()
+        {
+            var root = new GameObject("GigDirector");
+            root.AddComponent<NetworkObject>();
+            root.AddComponent<GigDirector>();
+            return Save(root, GigDirectorPath);
         }
 
         static void Register(GameObject prefab) => SetupMenu.RegisterNetworkPrefab(prefab);
