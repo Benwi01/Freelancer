@@ -3,9 +3,12 @@ using UnityEngine.UI;
 
 namespace Freelancer
 {
-    /// <summary>Main menu: Host, Join by code, Quit. Builds its own UI at startup.</summary>
+    /// <summary>Main menu: Host, Join by code, Quit, and the character customizer. Builds its own UI at startup.</summary>
     public class MainMenuUI : MonoBehaviour
     {
+        [Tooltip("Shown in the customizer preview.")]
+        [SerializeField] GameObject playerPrefab;
+
         InputField m_CodeField;
         Text m_Status;
         Button m_HostButton;
@@ -52,7 +55,7 @@ namespace Freelancer
             UiFactory.Place(tagline.rectTransform, new Vector2(0.5f, 1f), new Vector2(1400, 60), new Vector2(0, -270));
 
             var column = UiFactory.CreateColumn("Buttons", canvas.transform, 20);
-            UiFactory.Place(column, new Vector2(0.5f, 0.5f), new Vector2(560, 420), new Vector2(0, -60));
+            UiFactory.Place(column, new Vector2(0.5f, 0.5f), new Vector2(560, 420), new Vector2(-380, -60));
 
             m_HostButton = UiFactory.CreateButton("Host", column, "Host a gig", OnHost);
             UiFactory.SetPreferredHeight(m_HostButton, 80);
@@ -79,6 +82,8 @@ namespace Freelancer
                 .GetComponentInChildren<Text>().fontSize = 24;
             UiFactory.CreateButton("LocalJoin", dev, "Local join", () => SessionManager.Instance?.JoinLocal())
                 .GetComponentInChildren<Text>().fontSize = 24;
+
+            gameObject.AddComponent<CustomizePanel>().Build(canvas.transform, playerPrefab, new Vector2(400, -175));
 
             m_Status = UiFactory.CreateText("Status", canvas.transform, "", 32);
             UiFactory.Place(m_Status.rectTransform, new Vector2(0.5f, 0f), new Vector2(1600, 80), new Vector2(0, 80));

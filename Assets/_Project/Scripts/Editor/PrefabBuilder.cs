@@ -218,8 +218,17 @@ namespace Freelancer.EditorTools
             var so = new SerializedObject(motor);
             so.FindProperty("cameraPivot").objectReferenceValue = cameraPivot;
             so.FindProperty("playerCamera").objectReferenceValue = cam;
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            so = new SerializedObject(root.AddComponent<PlayerAppearance>());
+            SetObjects(so.FindProperty("hats"), rig.Hats.ToArray());
+            SetObjects(so.FindProperty("eyes"), rig.EyeSets.ToArray());
+            SetObjects(so.FindProperty("mouths"), rig.Mouths.ToArray());
+            SetObjects(so.FindProperty("outfits"), rig.Outfits.ToArray());
             SetObjects(so.FindProperty("tintRenderers"), rig.Tinted.ToArray());
             so.ApplyModifiedPropertiesWithoutUndo();
+            // Show the default look in the prefab itself.
+            root.GetComponent<PlayerAppearance>().Apply(PlayerLook.Default);
 
             so = new SerializedObject(knock);
             so.FindProperty("cameraPivot").objectReferenceValue = cameraPivot;
@@ -249,6 +258,10 @@ namespace Freelancer.EditorTools
             public readonly List<Rigidbody> Parts = new();
             public readonly List<Renderer> Tinted = new();
             public readonly List<Transform> Pupils = new();
+            public readonly List<GameObject> Hats = new();
+            public readonly List<GameObject> EyeSets = new();
+            public readonly List<GameObject> Mouths = new();
+            public readonly List<GameObject> Outfits = new();
         }
 
         /// <summary>
@@ -261,9 +274,7 @@ namespace Freelancer.EditorTools
             var skin = SetupUtil.Mat("Skin", new Color(0.96f, 0.78f, 0.62f));
             var pants = SetupUtil.Mat("Pants", new Color(0.26f, 0.32f, 0.45f));
             var shoes = SetupUtil.Mat("Shoes", new Color(0.18f, 0.14f, 0.13f));
-            var eyes = SetupUtil.Mat("Eyes", new Color(0.08f, 0.08f, 0.1f), 0.6f);
-            var pompom = SetupUtil.Mat("Pompom", new Color(0.97f, 0.96f, 0.92f));
-            Mesh capsule = LowPolyMeshes.Capsule, sphere = LowPolyMeshes.Sphere, cylinder = LowPolyMeshes.Cylinder;
+            Mesh capsule = LowPolyMeshes.Capsule, sphere = LowPolyMeshes.Sphere;
 
             var rig = new PlayerRig { Root = SetupUtil.Empty("Body", parent, Vector3.zero).transform };
 
@@ -297,29 +308,6 @@ namespace Freelancer.EditorTools
 
             var head = Bone("Head", "head", torso, new Vector3(0, 0.5f, 0));
             Vis(sphere, "Skull", head, new Vector3(0, 0.2f, 0), Vector3.one * 0.46f, skin);
-            // Tired googly eyes: mismatched eyeballs under heavy, droopy lids (overworked gig worker),
-            // pupils on pivots that wobble around (see PlayerEyes).
-            var eyeWhite = SetupUtil.Mat("EyeWhite", new Color(0.97f, 0.97f, 0.95f), 0.55f);
-            var lid = SetupUtil.Mat("Eyelid", new Color(0.9f, 0.7f, 0.56f));
-            var eyeSpecs = new[]
-            {
-                // name, centre, eyeball size, lid droop forward, lid droop to the outside
-                ("L", new Vector3(-0.1f, 0.17f, 0.162f), 0.2f, 6f, 16f),
-                ("R", new Vector3(0.088f, 0.158f, 0.17f), 0.165f, 0f, -12f),
-            };
-            foreach (var (s, eyeCenter, size, forward, outward) in eyeSpecs)
-            {
-                Vis(sphere, "Eyeball" + s, head, eyeCenter, Vector3.one * size, eyeWhite);
-                var pivot = SetupUtil.Empty("PupilPivot" + s, head, eyeCenter).transform;
-                rig.Pupils.Add(pivot);
-                Vis(sphere, "Pupil", pivot, new Vector3(0, 0, size * 0.465f), new Vector3(0.058f, 0.058f, 0.03f), eyes);
-                // Lid: a dome over the top of the eyeball, tipped forward and down at the outer corner.
-                LowPolyMeshes.Visual(LowPolyMeshes.Hemisphere, "Eyelid" + s, head, eyeCenter + Vector3.up * size * 0.12f,
-                    Vector3.one * size * 1.06f, lid, Quaternion.Euler(forward, 0f, outward));
-            }
-            Vis(sphere, "Beanie", head, new Vector3(0, 0.29f, -0.01f), new Vector3(0.49f, 0.36f, 0.49f), shirt, tint: true);
-            Vis(cylinder, "BeanieCuff", head, new Vector3(0, 0.27f, -0.01f), new Vector3(0.5f, 0.035f, 0.5f), shirt, tint: true);
-            Vis(sphere, "Pompom", head, new Vector3(0, 0.49f, -0.01f), Vector3.one * 0.13f, pompom);
             Part(rig, head, 3.5f, torsoPart, Sphere(head, new Vector3(0, 0.2f, 0), 0.23f),
                 Vector3.up, -30, 30, 35);
 
@@ -356,7 +344,113 @@ namespace Freelancer.EditorTools
                     Vector3.right, -70, 70, 8);
             }
 
+            BuildCosmetics(rig, head, torso);
             return rig;
+        }
+
+        /// <summary>
+        /// Every cosmetic option as a variant object (PlayerAppearance switches one on per slot).
+        /// The order must match the option names in PlayerLook.
+        /// </summary>
+        static void BuildCosmetics(PlayerRig rig, Transform head, Transform torso)
+        {
+            var tintable = SetupUtil.Mat("PlayerShirt", Color.white);
+            var pompom = SetupUtil.Mat("Pompom", new Color(0.97f, 0.96f, 0.92f));
+            var white = SetupUtil.Mat("CapLogo", new Color(0.98f, 0.98f, 0.97f));
+            var hardHat = SetupUtil.Mat("HardHat", new Color(0.98f, 0.78f, 0.12f), 0.5f);
+            var eyeWhite = SetupUtil.Mat("EyeWhite", new Color(0.97f, 0.97f, 0.95f), 0.55f);
+            var pupil = SetupUtil.Mat("Eyes", new Color(0.08f, 0.08f, 0.1f), 0.6f);
+            var lid = SetupUtil.Mat("Eyelid", new Color(0.9f, 0.7f, 0.56f));
+            var mouth = SetupUtil.Mat("Mouth", new Color(0.3f, 0.08f, 0.1f));
+            var vest = SetupUtil.Mat("HiVis", new Color(1f, 0.5f, 0.08f));
+            var reflective = SetupUtil.Mat("Reflective", new Color(0.86f, 0.9f, 0.93f), 0.85f);
+            Mesh sphere = LowPolyMeshes.Sphere, cylinder = LowPolyMeshes.Cylinder, dome = LowPolyMeshes.Hemisphere,
+                capsule = LowPolyMeshes.Capsule;
+
+            Transform Group(string name, Transform parent) => SetupUtil.Empty(name, parent, Vector3.zero).transform;
+
+            void Vis(Mesh mesh, string name, Transform parent, Vector3 pos, Vector3 scale, Material mat,
+                bool tint = false, Vector3? euler = null)
+            {
+                var r = LowPolyMeshes.Visual(mesh, name, parent, pos, scale, mat,
+                    Quaternion.Euler(euler ?? Vector3.zero)).GetComponent<Renderer>();
+                if (tint) rig.Tinted.Add(r);
+            }
+
+            // ----- Hats: Beanie, GigGrabber cap, Hard hat, No hat -----
+            var beanie = Group("Hat_Beanie", head);
+            Vis(sphere, "Beanie", beanie, new Vector3(0, 0.29f, -0.01f), new Vector3(0.49f, 0.36f, 0.49f), tintable, true);
+            Vis(cylinder, "Cuff", beanie, new Vector3(0, 0.27f, -0.01f), new Vector3(0.5f, 0.035f, 0.5f), tintable, true);
+            Vis(sphere, "Pompom", beanie, new Vector3(0, 0.49f, -0.01f), Vector3.one * 0.13f, pompom);
+            rig.Hats.Add(beanie.gameObject);
+
+            var cap = Group("Hat_Cap", head);
+            Vis(dome, "Crown", cap, new Vector3(0, 0.26f, -0.01f), new Vector3(0.5f, 0.42f, 0.5f), tintable, true);
+            Vis(cylinder, "Brim", cap, new Vector3(0, 0.27f, 0.21f), new Vector3(0.36f, 0.014f, 0.32f), tintable, true,
+                new Vector3(-6f, 0, 0));
+            Vis(sphere, "Button", cap, new Vector3(0, 0.47f, -0.01f), Vector3.one * 0.05f, white);
+            Vis(capsule, "Logo", cap, new Vector3(0, 0.34f, 0.215f), new Vector3(0.1f, 0.035f, 0.02f), white,
+                euler: new Vector3(-30f, 0, 0f));
+            rig.Hats.Add(cap.gameObject);
+
+            var hard = Group("Hat_HardHat", head);
+            Vis(dome, "Shell", hard, new Vector3(0, 0.25f, 0), new Vector3(0.53f, 0.46f, 0.53f), hardHat);
+            Vis(cylinder, "Rim", hard, new Vector3(0, 0.255f, 0.02f), new Vector3(0.62f, 0.012f, 0.66f), hardHat);
+            Vis(capsule, "Ridge", hard, new Vector3(0, 0.46f, 0), new Vector3(0.06f, 0.2f, 0.06f), hardHat,
+                euler: new Vector3(90f, 0, 0));
+            rig.Hats.Add(hard.gameObject);
+
+            rig.Hats.Add(null); // no hat
+
+            // ----- Eyes: Derpy, Googly, Grumpy, Tired -----
+            // (name, centre L, size L, centre R, size R, lid: forward tilt, outer-corner droop; 0 size = no lids)
+            var eyeSets = new[]
+            {
+                ("Derpy", new Vector3(-0.1f, 0.175f, 0.162f), 0.2f, new Vector3(0.088f, 0.15f, 0.172f), 0.155f, float.NaN, 0f),
+                ("Googly", new Vector3(-0.098f, 0.17f, 0.165f), 0.19f, new Vector3(0.098f, 0.17f, 0.165f), 0.19f, float.NaN, 0f),
+                ("Grumpy", new Vector3(-0.095f, 0.165f, 0.165f), 0.18f, new Vector3(0.095f, 0.165f, 0.165f), 0.18f, 12f, -20f),
+                ("Tired", new Vector3(-0.1f, 0.17f, 0.162f), 0.2f, new Vector3(0.088f, 0.158f, 0.17f), 0.165f, 6f, 14f),
+            };
+            foreach (var (name, centerL, sizeL, centerR, sizeR, lidForward, lidDroop) in eyeSets)
+            {
+                var set = Group("Eyes_" + name, head);
+                foreach (var (s, center, size, side) in new[] { ("L", centerL, sizeL, -1f), ("R", centerR, sizeR, 1f) })
+                {
+                    Vis(sphere, "Eyeball" + s, set, center, Vector3.one * size, eyeWhite);
+                    var pivot = SetupUtil.Empty("PupilPivot" + s, set, center).transform;
+                    rig.Pupils.Add(pivot);
+                    Vis(sphere, "Pupil", pivot, new Vector3(0, 0, size * 0.465f), new Vector3(0.058f, 0.058f, 0.03f), pupil);
+                    if (!float.IsNaN(lidForward))
+                    {
+                        // A dome over the top of the eyeball. Positive droop lowers the outer corner
+                        // (tired); negative lowers the inner corner (grumpy).
+                        Vis(dome, "Eyelid" + s, set, center + Vector3.up * size * 0.12f, Vector3.one * size * 1.06f, lid,
+                            euler: new Vector3(lidForward, 0f, -side * lidDroop));
+                    }
+                }
+                rig.EyeSets.Add(set.gameObject);
+            }
+
+            // ----- Mouths: Grin, Ooh, None -----  (on the lower face, tilted to follow the head)
+            var grin = Group("Mouth_Grin", head);
+            Vis(capsule, "Grin", grin, new Vector3(0.015f, 0.055f, 0.172f), new Vector3(0.026f, 0.05f, 0.03f), mouth,
+                euler: new Vector3(40f, 0f, 98f));
+            rig.Mouths.Add(grin.gameObject);
+
+            var ooh = Group("Mouth_Ooh", head);
+            Vis(sphere, "Ooh", ooh, new Vector3(0.02f, 0.05f, 0.175f), new Vector3(0.05f, 0.064f, 0.03f), mouth,
+                euler: new Vector3(40f, 0f, 0f));
+            rig.Mouths.Add(ooh.gameObject);
+
+            rig.Mouths.Add(null); // none
+
+            // ----- Outfits: Sweater (the plain shirt), Hi-vis vest -----
+            rig.Outfits.Add(null);
+            var vestGroup = Group("Outfit_Vest", torso);
+            Vis(capsule, "Vest", vestGroup, new Vector3(0, 0.24f, 0), new Vector3(0.565f, 0.28f, 0.4f), vest);
+            Vis(cylinder, "StripeLow", vestGroup, new Vector3(0, 0.14f, 0), new Vector3(0.585f, 0.022f, 0.42f), reflective);
+            Vis(cylinder, "StripeHigh", vestGroup, new Vector3(0, 0.28f, 0), new Vector3(0.585f, 0.022f, 0.42f), reflective);
+            rig.Outfits.Add(vestGroup.gameObject);
         }
 
         /// <summary>Make a bone a ragdoll part: kinematic rigidbody, disabled collider, joint to its parent part.</summary>

@@ -28,16 +28,18 @@ namespace Freelancer.EditorTools
                 SceneManager_Move(floor, scene);
                 floor.transform.position = origin;
 
-                float[] yaws = { 180f, 135f, 90f };
+                float[] yaws = { 180f, 160f, 200f };
                 for (int i = 0; i < yaws.Length; i++)
                 {
                     var p = (GameObject)PrefabUtility.InstantiatePrefab(prefab, scene);
                     p.transform.SetPositionAndRotation(origin + new Vector3((i - 1) * 1.3f, 0, 0), Quaternion.Euler(0, yaws[i], 0));
-                    var tint = new SerializedObject(p.GetComponent<PlayerMotor>()).FindProperty("tintRenderers");
-                    var block = new MaterialPropertyBlock();
-                    block.SetColor("_BaseColor", new[] { new Color(0.95f, 0.35f, 0.3f), new Color(0.3f, 0.6f, 0.95f), new Color(0.4f, 0.85f, 0.4f) }[i]);
-                    for (int t = 0; t < tint.arraySize; t++)
-                        (tint.GetArrayElementAtIndex(t).objectReferenceValue as Renderer)?.SetPropertyBlock(block);
+                    var looks = new[]
+                    {
+                        new PlayerLook { Color = 0, Hat = 0, Eyes = 0, Mouth = 0, Outfit = 0 },
+                        new PlayerLook { Color = 1, Hat = 1, Eyes = 2, Mouth = 1, Outfit = 1 },
+                        new PlayerLook { Color = 5, Hat = 2, Eyes = 1, Mouth = 0, Outfit = 1 },
+                    };
+                    p.GetComponent<PlayerAppearance>().Apply(looks[i]);
                     // Pupils are posed at runtime; give them a derpy pose for the picture.
                     foreach (var t in p.GetComponentsInChildren<Transform>())
                         if (t.name.StartsWith("PupilPivot"))
@@ -58,8 +60,8 @@ namespace Freelancer.EditorTools
 
                 Shoot(c, "player-preview.png");
                 c.fieldOfView = 22f;
-                camGo.transform.position = origin + new Vector3(-1.3f, 1.66f, -1.5f);
-                camGo.transform.LookAt(origin + new Vector3(-1.3f, 1.6f, 0));
+                camGo.transform.position = origin + new Vector3(-0.1f, 1.66f, -1.5f);
+                camGo.transform.LookAt(origin + new Vector3(0, 1.58f, 0));
                 Shoot(c, "player-face.png");
                 Debug.Log("[Freelancer] Wrote Temp/player-preview.png");
             }

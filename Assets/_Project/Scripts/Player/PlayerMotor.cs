@@ -31,18 +31,11 @@ namespace Freelancer
         [SerializeField] Transform cameraPivot;
         [SerializeField] Camera playerCamera;
 
-        [Header("Visuals")]
-        [SerializeField] Renderer[] tintRenderers;
-
         readonly NetworkVariable<float> m_Pitch = new(0f,
             NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
 
-        static readonly Color[] k_PlayerColors =
-        {
-            new(0.95f, 0.35f, 0.3f), new(0.3f, 0.6f, 0.95f), new(0.4f, 0.85f, 0.4f), new(0.95f, 0.8f, 0.25f),
-        };
-
         CharacterController m_Controller;
+        PlayerAppearance m_Appearance;
         PlayerKnockdown m_Knockdown;
         Vector3 m_Velocity;
         float m_LocalPitch;
@@ -67,12 +60,14 @@ namespace Freelancer
         }
 
         public Camera Camera => playerCamera;
-        public Color PlayerColor => k_PlayerColors[OwnerClientId % (ulong)k_PlayerColors.Length];
+        /// <summary>The colour this player picked (see PlayerAppearance).</summary>
+        public Color PlayerColor => m_Appearance != null ? m_Appearance.Color : Color.white;
 
         void Awake()
         {
             m_Controller = GetComponent<CharacterController>();
             m_Knockdown = GetComponent<PlayerKnockdown>();
+            m_Appearance = GetComponent<PlayerAppearance>();
             // Cached now: the ragdoll later moves the body out of this hierarchy for a while.
             m_BodyRenderers = GetComponentsInChildren<Renderer>(true);
         }
@@ -80,7 +75,6 @@ namespace Freelancer
         public override void OnNetworkSpawn()
         {
             ByClientId[OwnerClientId] = this;
-            ApplyTint();
 
             bool local = IsOwner;
             playerCamera.enabled = local;
@@ -104,14 +98,6 @@ namespace Freelancer
             if (ByClientId.TryGetValue(OwnerClientId, out var p) && p == this)
                 ByClientId.Remove(OwnerClientId);
             if (IsOwner && m_SceneCamera != null) m_SceneCamera.gameObject.SetActive(true);
-        }
-
-        void ApplyTint()
-        {
-            var block = new MaterialPropertyBlock();
-            block.SetColor("_BaseColor", PlayerColor);
-            foreach (var r in tintRenderers)
-                if (r != null) r.SetPropertyBlock(block);
         }
 
         void Update()

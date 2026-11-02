@@ -54,7 +54,11 @@ namespace Freelancer.EditorTools
             nm.NetworkConfig.Prefabs.NetworkPrefabsLists = new List<NetworkPrefabsList> { GetOrCreatePrefabList() };
             root.AddComponent<SessionManager>();
 
-            new GameObject("MainMenu").AddComponent<MainMenuUI>();
+            var menu = new GameObject("MainMenu").AddComponent<MainMenuUI>();
+            var menuSo = new SerializedObject(menu);
+            menuSo.FindProperty("playerPrefab").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<GameObject>(PrefabBuilder.PlayerPath);
+            menuSo.ApplyModifiedPropertiesWithoutUndo();
 
             EditorSceneManager.SaveScene(scene, SetupUtil.MenuScenePath);
             Debug.Log("[Freelancer] Built " + SetupUtil.MenuScenePath);
