@@ -1,5 +1,6 @@
 using UnityEditor;
 using UnityEngine;
+using static Freelancer.EditorTools.SceneKit;
 
 namespace Freelancer.EditorTools
 {
@@ -132,18 +133,6 @@ namespace Freelancer.EditorTools
                 if (y < 3f && Mathf.Abs(x - xMid) < 1.3f) continue; // door
                 Window(b, new Vector3(x, y, zFront), yaw, 1f, 1.3f);
             }
-        }
-
-        /// <summary>Framed window with a cross mullion and a sill, sticking out of a wall along local -z.</summary>
-        static void Window(Transform parent, Vector3 position, float yaw, float w, float h)
-        {
-            var p = SetupUtil.Empty("Window", parent, position).transform;
-            p.localRotation = Quaternion.Euler(0f, yaw, 0f);
-            Box("Frame", p, new Vector3(0, 0, -0.03f), new Vector3(w + 0.16f, h + 0.16f, 0.06f), s_Frame);
-            Box("Glass", p, new Vector3(0, 0, -0.075f), new Vector3(w, h, 0.02f), s_GlassPane);
-            Box("MullionV", p, new Vector3(0, 0, -0.095f), new Vector3(0.05f, h, 0.02f), s_Frame);
-            Box("MullionH", p, new Vector3(0, 0.08f, -0.095f), new Vector3(w, 0.05f, 0.02f), s_Frame);
-            Box("Sill", p, new Vector3(0, -h / 2f - 0.1f, -0.08f), new Vector3(w + 0.3f, 0.07f, 0.16f), s_Stone);
         }
 
         // ---------- Street ----------
@@ -382,45 +371,6 @@ namespace Freelancer.EditorTools
                 Palette.PartyPink);
         }
 
-        /// <summary>
-        /// A closed front door on a wall: frame, panel, handle, peephole, number plate and doormat.
-        /// <paramref name="floorPoint"/> is where the door meets the floor on the wall face;
-        /// yaw turns local +z (out of the wall) toward the corridor.
-        /// </summary>
-        static void Door(Transform parent, Vector3 floorPoint, float yaw, string number, int colour)
-        {
-            var p = SetupUtil.Empty("Door_" + number, parent, floorPoint).transform;
-            p.localRotation = Quaternion.Euler(0f, yaw, 0f);
-            Box("Frame", p, new Vector3(0f, 1.1f, 0.03f), new Vector3(1.16f, 2.22f, 0.06f), s_Stone);
-            Box("Panel", p, new Vector3(0f, 1.03f, 0.06f), new Vector3(0.96f, 2.04f, 0.04f),
-                SetupUtil.Mat("Door" + colour, Palette.Doors[colour]));
-            Box("PanelInsetTop", p, new Vector3(0f, 1.5f, 0.083f), new Vector3(0.66f, 0.7f, 0.01f),
-                SetupUtil.Mat("Door" + colour, Palette.Doors[colour]));
-            Box("PanelInsetLow", p, new Vector3(0f, 0.55f, 0.083f), new Vector3(0.66f, 0.6f, 0.01f),
-                SetupUtil.Mat("Door" + colour, Palette.Doors[colour]));
-            var brass = SetupUtil.Mat("Brass", Palette.Brass, 0.6f);
-            Vis(LowPolyMeshes.Sphere, "Handle", p, new Vector3(0.36f, 1f, 0.11f), Vector3.one * 0.07f, brass);
-            Vis(LowPolyMeshes.Sphere, "Peephole", p, new Vector3(0f, 1.55f, 0.085f), Vector3.one * 0.035f, brass);
-            Box("Doormat", p, new Vector3(0f, 0.007f, 0.45f), new Vector3(0.9f, 0.012f, 0.55f),
-                SetupUtil.Mat("Doormat", Palette.Doormat));
-
-            // Number plate on the door, readable from the corridor.
-            Vector3 platePos = p.TransformPoint(new Vector3(0f, 1.95f, 0.12f));
-            Label(number, parent, platePos, p.rotation * Quaternion.Euler(0f, 180f, 0f), 0.08f, Palette.Trim, Palette.Brass);
-        }
-
-        /// <summary>A warm point light (no shadows, cheap).</summary>
-        static void Lamp(Transform parent, Vector3 position, float range, float intensity)
-        {
-            var go = SetupUtil.Empty("Light", parent, position);
-            var light = go.AddComponent<Light>();
-            light.type = LightType.Point;
-            light.color = Palette.WarmLight;
-            light.range = range;
-            light.intensity = intensity;
-            light.shadows = LightShadows.None;
-        }
-
         static void WallArt(Transform parent, Vector3 wallPoint, Material canvas)
         {
             var p = SetupUtil.Empty("WallArt", parent, wallPoint).transform;
@@ -429,37 +379,5 @@ namespace Freelancer.EditorTools
             Box("Canvas", p, new Vector3(0, 0, -0.042f), new Vector3(0.84f, 0.6f, 0.01f), canvas);
         }
 
-        // ---------- Helpers ----------
-
-        /// <summary>Visual-only box (no collider).</summary>
-        static GameObject Box(string name, Transform parent, Vector3 localPos, Vector3 size, Material mat, Quaternion? rot = null)
-        {
-            var go = SetupUtil.Visual(PrimitiveType.Cube, name, parent, localPos, size, mat);
-            if (rot.HasValue) go.transform.localRotation = rot.Value;
-            go.isStatic = true;
-            return go;
-        }
-
-        /// <summary>Visual-only low-poly mesh.</summary>
-        static GameObject Vis(Mesh mesh, string name, Transform parent, Vector3 localPos, Vector3 scale, Material mat,
-            Quaternion? rot = null)
-        {
-            var go = LowPolyMeshes.Visual(mesh, name, parent, localPos, scale, mat, rot);
-            go.isStatic = true;
-            return go;
-        }
-
-        /// <summary>A primitive you can bump into (keeps its collider).</summary>
-        static GameObject Solid(PrimitiveType type, string name, Transform parent, Vector3 localPos, Vector3 scale, Material mat)
-        {
-            var go = GameObject.CreatePrimitive(type);
-            go.name = name;
-            go.transform.SetParent(parent, false);
-            go.transform.localPosition = localPos;
-            go.transform.localScale = scale;
-            go.GetComponent<Renderer>().sharedMaterial = mat;
-            go.isStatic = true;
-            return go;
-        }
     }
 }

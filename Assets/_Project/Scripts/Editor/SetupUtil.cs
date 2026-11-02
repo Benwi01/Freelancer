@@ -13,6 +13,7 @@ namespace Freelancer.EditorTools
         public const string MaterialsDir = Root + "/Art/Materials";
         public const string MenuScenePath = ScenesDir + "/MainMenu.unity";
         public const string GigScenePath = ScenesDir + "/CakeDelivery.unity";
+        public const string HubScenePath = ScenesDir + "/Hub.unity";
 
         public static void EnsureFolders()
         {

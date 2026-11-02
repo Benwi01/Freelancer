@@ -77,6 +77,18 @@ namespace Freelancer.EditorTools
         public static readonly Color Terracotta = Hex("C46A45");
         public static readonly Color Cushion = Hex("F6C36A");
 
+        // Hub apartment
+        public static readonly Color HubWall = Hex("8FB3AE");
+        public static readonly Color Ceiling = Hex("EDE6DA");
+        public static readonly Color Wainscot = Hex("E6D8BD");
+        public static readonly Color Blanket = Hex("4F7FBF");
+        public static readonly Color CouchPatch = Hex("8B5E9C");
+        public static readonly Color HubRug = Hex("7A8FB5");
+        public static readonly Color StickyNote = Hex("FFE066");
+        public static readonly Color DeadLeaf = Hex("9C7A3C");
+        public static readonly Color Screen = Hex("EEF4FF");
+        public static readonly Color Stain = Hex("7C9E99");
+
         static Color Hex(string hex)
         {
             ColorUtility.TryParseHtmlString("#" + hex, out var c);

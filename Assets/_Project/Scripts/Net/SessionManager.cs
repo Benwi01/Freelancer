@@ -20,8 +20,8 @@ namespace Freelancer
 
         public static SessionManager Instance { get; private set; }
 
-        [Tooltip("Scene the host loads once the session is up.")]
-        [SerializeField] string gigSceneName = "CakeDelivery";
+        [Tooltip("The crew's apartment: where the host goes once the session is up, and where gigs return to.")]
+        [SerializeField] string hubSceneName = "Hub";
         [SerializeField] string menuSceneName = "MainMenu";
 
         public ISession ActiveSession { get; private set; }
@@ -110,7 +110,7 @@ namespace Freelancer
                 ActiveSession.RemovedFromSession += OnRemovedFromSession;
 
                 SetStatus($"Session up. Code: {ActiveSession.Code}");
-                NetworkManager.Singleton.SceneManager.LoadScene(gigSceneName, LoadSceneMode.Single);
+                NetworkManager.Singleton.SceneManager.LoadScene(hubSceneName, LoadSceneMode.Single);
             }
             catch (Exception e)
             {
@@ -169,7 +169,7 @@ namespace Freelancer
             if (NetworkManager.Singleton.StartHost())
             {
                 SetStatus("Local host on 127.0.0.1:" + LocalPort);
-                NetworkManager.Singleton.SceneManager.LoadScene(gigSceneName, LoadSceneMode.Single);
+                NetworkManager.Singleton.SceneManager.LoadScene(hubSceneName, LoadSceneMode.Single);
             }
             else SetStatus("Could not start local host (port in use?).");
         }
@@ -182,6 +182,24 @@ namespace Freelancer
         }
 
         const ushort LocalPort = 7777;
+
+        public bool InHub => SceneManager.GetActiveScene().name == hubSceneName;
+
+        /// <summary>Host only: take the whole crew to a gig.</summary>
+        public void StartGig(GigDefinition gig)
+        {
+            var nm = NetworkManager.Singleton;
+            if (gig == null || nm == null || !nm.IsServer) return;
+            nm.SceneManager.LoadScene(gig.Scene, LoadSceneMode.Single);
+        }
+
+        /// <summary>Host only: everyone back to the apartment.</summary>
+        public void ReturnToHub()
+        {
+            var nm = NetworkManager.Singleton;
+            if (nm == null || !nm.IsServer) return;
+            nm.SceneManager.LoadScene(hubSceneName, LoadSceneMode.Single);
+        }
 
         static void SetLocalAddress()
         {

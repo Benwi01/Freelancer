@@ -44,7 +44,14 @@ namespace Freelancer.EditorTools
                 s_StartedAt = EditorApplication.timeSinceStartup;
                 SessionState.SetInt(Key, 2);
             }
-            else if (stage == 2 && EditorApplication.timeSinceStartup - s_StartedAt > 12)
+            else if (stage == 2 && EditorApplication.timeSinceStartup - s_StartedAt > 4)
+            {
+                // Host lands in the apartment; take the "computer" route to the cake gig.
+                LogState("in hub");
+                SessionManager.Instance.StartGig(GigCatalog.All[0]);
+                SessionState.SetInt(Key, 10);
+            }
+            else if (stage == 10 && EditorApplication.timeSinceStartup - s_StartedAt > 16)
             {
                 LogState("after briefing");
                 foreach (var p in Object.FindObjectsByType<PlayerKnockdown>())
@@ -64,14 +71,20 @@ namespace Freelancer.EditorTools
                 }
                 SessionState.SetInt(Key, 3);
             }
-            else if (stage == 3 && EditorApplication.timeSinceStartup - s_StartedAt > 13.5)
+            else if (stage == 3 && EditorApplication.timeSinceStartup - s_StartedAt > 17.5)
             {
                 LogState("mid knockdown");
                 SessionState.SetInt(Key, 4);
             }
-            else if (stage == 4 && EditorApplication.timeSinceStartup - s_StartedAt > 18)
+            else if (stage == 4 && EditorApplication.timeSinceStartup - s_StartedAt > 22)
             {
                 LogState("after delivery");
+                SessionManager.Instance.ReturnToHub();
+                SessionState.SetInt(Key, 5);
+            }
+            else if (stage == 5 && EditorApplication.timeSinceStartup - s_StartedAt > 26)
+            {
+                LogState("back in hub");
                 SessionState.SetInt(Key, 0);
                 EditorApplication.isPlaying = false;
             }

@@ -27,6 +27,8 @@ namespace Freelancer
         Image[] m_Stars;
         Text m_Review;
         Button m_Retry;
+        Button m_ToHub;
+        Text m_Waiting;
         Image m_DamageFlash;
         float m_Flash;
         CakeCondition m_SubscribedCake;
@@ -162,7 +164,9 @@ namespace Freelancer
             layout.childControlWidth = layout.childControlHeight = true;
             layout.childForceExpandWidth = layout.childForceExpandHeight = true;
             m_Retry = UiFactory.CreateButton("Retry", row, "Retry gig", OnRetry);
-            UiFactory.CreateButton("Menu", row, "Back to menu", OnMenu);
+            m_ToHub = UiFactory.CreateButton("Hub", row, "Back to apartment", OnHub);
+            m_Waiting = UiFactory.CreateText("Waiting", row, "Waiting for the host...", 28);
+            UiFactory.CreateButton("Leave", row, "Leave crew", OnMenu);
         }
 
         void Update()
@@ -241,6 +245,8 @@ namespace Freelancer
 
             bool isHost = NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer;
             m_Retry.gameObject.SetActive(isHost);
+            m_ToHub.gameObject.SetActive(isHost);
+            m_Waiting.gameObject.SetActive(!isHost);
         }
 
         void SubscribeCake(CakeCondition cake)
@@ -254,6 +260,8 @@ namespace Freelancer
         void OnCakeDamaged(float amount) => m_Flash = Mathf.Clamp01(m_Flash + amount / 25f);
 
         void OnRetry() => GigDirector.Current?.RequestRestartRpc();
+
+        void OnHub() => GigDirector.Current?.RequestReturnToHubRpc();
 
         void OnMenu() => _ = SessionManager.Instance?.LeaveAsync();
     }

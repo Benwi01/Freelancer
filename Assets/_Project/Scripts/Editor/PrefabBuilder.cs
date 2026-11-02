@@ -213,6 +213,7 @@ namespace Freelancer.EditorTools
             var motor = root.AddComponent<PlayerMotor>();
             var knock = root.AddComponent<PlayerKnockdown>();
             root.AddComponent<PlayerGrabber>();
+            root.AddComponent<PlayerInteractor>();
             var bodyAnim = root.AddComponent<PlayerBody>();
             var ragdoll = root.AddComponent<PlayerRagdoll>();
 

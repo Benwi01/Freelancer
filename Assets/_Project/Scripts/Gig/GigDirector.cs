@@ -143,6 +143,14 @@ namespace Freelancer
             m_Phase.Value = phase;
         }
 
+        /// <summary>Host only: everyone back to the apartment.</summary>
+        [Rpc(SendTo.Server)]
+        public void RequestReturnToHubRpc(RpcParams rpcParams = default)
+        {
+            if (rpcParams.Receive.SenderClientId != NetworkManager.ServerClientId) return;
+            SessionManager.Instance?.ReturnToHub();
+        }
+
         /// <summary>Host only: reload the gig scene for everyone.</summary>
         [Rpc(SendTo.Server)]
         public void RequestRestartRpc(RpcParams rpcParams = default)

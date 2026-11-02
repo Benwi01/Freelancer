@@ -2,6 +2,7 @@ using Unity.Netcode;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using static Freelancer.EditorTools.SceneKit;
 
 namespace Freelancer.EditorTools
 {
@@ -258,50 +259,5 @@ namespace Freelancer.EditorTools
         static GameObject Deco(PrimitiveType type, string name, Transform parent, Vector3 pos, Vector3 scale, Material mat) =>
             SetupUtil.Visual(type, name, parent, pos, scale, mat);
 
-        static void Spawner(Transform parent, string prefabPath, Vector3 position, float yaw, string name = null)
-        {
-            var go = new GameObject(name ?? "Spawn_" + System.IO.Path.GetFileNameWithoutExtension(prefabPath));
-            go.transform.SetParent(parent, false);
-            go.transform.position = position;
-            go.transform.rotation = Quaternion.Euler(0, yaw, 0);
-            var spawner = go.AddComponent<ServerSpawner>();
-            var so = new SerializedObject(spawner);
-            so.FindProperty("prefab").objectReferenceValue = AssetDatabase.LoadAssetAtPath<NetworkObject>(prefabPath);
-            so.ApplyModifiedPropertiesWithoutUndo();
-        }
-
-        /// <summary>
-        /// Crisp world-space text (TextMesh Pro). Readable when looking along the rotation's +z;
-        /// with a plate colour it sits on a sign board sized to fit the text.
-        /// </summary>
-        static GameObject Label(string text, Transform parent, Vector3 position, Quaternion rotation, float letterHeight,
-            Color color, Color? plate = null)
-        {
-            var go = new GameObject("Label_" + text);
-            go.transform.SetParent(parent, false);
-            go.transform.SetPositionAndRotation(position, rotation);
-
-            var tmp = go.AddComponent<TMPro.TextMeshPro>();
-            tmp.text = text;
-            tmp.fontSize = letterHeight * 13f;
-            tmp.fontStyle = TMPro.FontStyles.Bold;
-            tmp.alignment = TMPro.TextAlignmentOptions.Center;
-            tmp.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
-            tmp.color = color;
-            tmp.rectTransform.sizeDelta = new Vector2(10f, 2f);
-
-            if (plate.HasValue)
-            {
-                tmp.ForceMeshUpdate();
-                Bounds b = tmp.textBounds;
-                float pad = letterHeight * 0.55f;
-                var board = SetupUtil.Visual(PrimitiveType.Cube, "Plate", go.transform,
-                    new Vector3(b.center.x, b.center.y, 0.015f),
-                    new Vector3(b.size.x + pad * 2f, b.size.y + pad * 2f, 0.02f),
-                    SetupUtil.Mat("Sign_" + ColorUtility.ToHtmlStringRGB(plate.Value), plate.Value));
-                board.isStatic = true;
-            }
-            return go;
-        }
     }
 }

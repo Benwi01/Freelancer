@@ -7,8 +7,8 @@ using UnityEngine;
 namespace Freelancer.EditorTools
 {
     /// <summary>
-    /// Renders a few viewpoints of the Cake Delivery scene (with some posed characters) to
-    /// Temp/gig-view-N.png, for checking the look without playing.
+    /// Renders a few viewpoints of a scene (with some posed characters) to Temp/&lt;prefix&gt;-N.png,
+    /// for checking the look without playing. Covers the Cake Delivery gig and the Hub.
     /// </summary>
     static class DevGigViews
     {
@@ -26,28 +26,50 @@ namespace Freelancer.EditorTools
             (new Vector3(16f, 14f, -18f), new Vector3(0f, 3f, 4f)),             // overview
         };
 
+        static readonly (Vector3 pos, Vector3 lookAt)[] k_HubViews =
+        {
+            (new Vector3(-0.5f, 1.65f, -3.2f), new Vector3(2.5f, 1.1f, 3.5f)),    // into the room, toward the computer
+            (new Vector3(3.3f, 1.6f, 1.9f), new Vector3(3.3f, 1.25f, 3.7f)),      // at the computer
+            (new Vector3(2.5f, 1.65f, 2.5f), new Vector3(-3f, 0.8f, -2.5f)),      // back toward couch and door
+            (new Vector3(-1f, 1.65f, 1.5f), new Vector3(4.5f, 1.2f, -1f)),        // kitchenette
+        };
+
+        static readonly (Vector3 pos, float yaw, PlayerLook look)[] k_GigCrew =
+        {
+            (new Vector3(-1.2f, 0.1f, -2.8f), 200f, new PlayerLook { Color = 0, Hat = 1, Eyes = 0, Mouth = 0, Outfit = 1 }),
+            (new Vector3(0.6f, 0.1f, -3.4f), 160f, new PlayerLook { Color = 1, Hat = 0, Eyes = 1, Mouth = 1, Outfit = 0 }),
+            (new Vector3(-4.2f, 2.1f, 13.5f), 200f, new PlayerLook { Color = 3, Hat = 2, Eyes = 2, Mouth = 0, Outfit = 1 }),
+            (new Vector3(1.6f, 6.1f, 11f), 240f, new PlayerLook { Color = 5, Hat = 3, Eyes = 3, Mouth = 2, Outfit = 0 }),
+        };
+
+        static readonly (Vector3 pos, float yaw, PlayerLook look)[] k_HubCrew =
+        {
+            (new Vector3(2.2f, 0.02f, 2.4f), 30f, new PlayerLook { Color = 0, Hat = 1, Eyes = 0, Mouth = 0, Outfit = 1 }),
+            (new Vector3(-1.6f, 0.02f, -2.6f), 30f, new PlayerLook { Color = 1, Hat = 0, Eyes = 1, Mouth = 1, Outfit = 0 }),
+            (new Vector3(1.2f, 0.02f, -0.6f), 220f, new PlayerLook { Color = 5, Hat = 2, Eyes = 2, Mouth = 0, Outfit = 0 }),
+        };
+
         [MenuItem("Freelancer/Setup/Dev/Capture Gig Views", priority = 104)]
-        static void Capture()
+        static void CaptureGig() => Capture(SetupUtil.GigScenePath, "gig-view", k_Views, k_GigCrew, cake: true);
+
+        [MenuItem("Freelancer/Setup/Dev/Capture Hub Views", priority = 105)]
+        static void CaptureHub() => Capture(SetupUtil.HubScenePath, "hub-view", k_HubViews, k_HubCrew, cake: false);
+
+        static void Capture(string scenePath, string prefix, (Vector3 pos, Vector3 lookAt)[] views,
+            (Vector3 pos, float yaw, PlayerLook look)[] crew, bool cake)
         {
             var scene = EditorSceneManager.GetActiveScene();
-            if (scene.path != SetupUtil.GigScenePath)
-                scene = EditorSceneManager.OpenScene(SetupUtil.GigScenePath);
+            if (scene.path != scenePath)
+                scene = EditorSceneManager.OpenScene(scenePath);
 
             var temp = new List<GameObject>();
             bool asyncShaders = ShaderUtil.allowAsyncCompilation;
             ShaderUtil.allowAsyncCompilation = false; // otherwise not-yet-compiled shaders render invisible
             try
             {
-                // A few freelancers standing around, plus the cake in the van.
+                // A few freelancers standing around (plus the cake in the van, for the gig).
                 var player = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabBuilder.PlayerPath);
-                var looks = new[]
-                {
-                    (new Vector3(-1.2f, 0.1f, -2.8f), 200f, new PlayerLook { Color = 0, Hat = 1, Eyes = 0, Mouth = 0, Outfit = 1 }),
-                    (new Vector3(0.6f, 0.1f, -3.4f), 160f, new PlayerLook { Color = 1, Hat = 0, Eyes = 1, Mouth = 1, Outfit = 0 }),
-                    (new Vector3(-4.2f, 2.1f, 13.5f), 200f, new PlayerLook { Color = 3, Hat = 2, Eyes = 2, Mouth = 0, Outfit = 1 }),
-                    (new Vector3(1.6f, 6.1f, 11f), 240f, new PlayerLook { Color = 5, Hat = 3, Eyes = 3, Mouth = 2, Outfit = 0 }),
-                };
-                foreach (var (pos, yaw, look) in looks)
+                foreach (var (pos, yaw, look) in crew)
                 {
                     var p = (GameObject)PrefabUtility.InstantiatePrefab(player, scene);
                     p.transform.SetPositionAndRotation(pos, Quaternion.Euler(0, yaw, 0));
@@ -55,10 +77,13 @@ namespace Freelancer.EditorTools
                     foreach (var c in p.GetComponentsInChildren<Camera>(true)) c.gameObject.SetActive(false);
                     temp.Add(p);
                 }
-                var cake = (GameObject)PrefabUtility.InstantiatePrefab(
-                    AssetDatabase.LoadAssetAtPath<GameObject>(PrefabBuilder.CakePath), scene);
-                cake.transform.position = new Vector3(0, 0.62f, -8.4f);
-                temp.Add(cake);
+                if (cake)
+                {
+                    var cakeGo = (GameObject)PrefabUtility.InstantiatePrefab(
+                        AssetDatabase.LoadAssetAtPath<GameObject>(PrefabBuilder.CakePath), scene);
+                    cakeGo.transform.position = new Vector3(0, 0.62f, -8.4f);
+                    temp.Add(cakeGo);
+                }
 
                 var camGo = new GameObject("DevViewCamera", typeof(Camera));
                 temp.Add(camGo);
@@ -68,18 +93,18 @@ namespace Freelancer.EditorTools
                 LookSetup.ConfigureCamera(cam);
 
                 // Throwaway frame: the first render after a rebuild can come out incomplete.
-                cam.transform.position = k_Views[0].pos;
-                cam.transform.LookAt(k_Views[0].lookAt);
-                Shoot(cam, "gig-view-warmup.png");
+                cam.transform.position = views[0].pos;
+                cam.transform.LookAt(views[0].lookAt);
+                Shoot(cam, $"{prefix}-warmup.png");
 
-                for (int i = 0; i < k_Views.Length; i++)
+                for (int i = 0; i < views.Length; i++)
                 {
-                    cam.transform.position = k_Views[i].pos;
-                    cam.transform.LookAt(k_Views[i].lookAt);
-                    cam.fieldOfView = i == k_Views.Length - 1 ? 45f : 70f;
-                    Shoot(cam, $"gig-view-{i + 1}.png");
+                    cam.transform.position = views[i].pos;
+                    cam.transform.LookAt(views[i].lookAt);
+                    cam.fieldOfView = cake && i == views.Length - 1 ? 45f : 70f; // gig overview is the last view
+                    Shoot(cam, $"{prefix}-{i + 1}.png");
                 }
-                Debug.Log("[Freelancer] Wrote Temp/gig-view-*.png");
+                Debug.Log($"[Freelancer] Wrote Temp/{prefix}-*.png");
             }
             finally
             {

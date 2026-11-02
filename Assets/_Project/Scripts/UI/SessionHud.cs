@@ -41,7 +41,7 @@ namespace Freelancer
             var column = UiFactory.CreateColumn("Buttons", menuBg.transform, 20);
             UiFactory.Place(column, new Vector2(0.5f, 0.5f), new Vector2(500, 200), Vector2.zero);
             UiFactory.SetPreferredHeight(UiFactory.CreateButton("Resume", column, "Resume", () => SetMenu(false)), 80);
-            UiFactory.SetPreferredHeight(UiFactory.CreateButton("Leave", column, "Leave gig", OnLeave), 80);
+            UiFactory.SetPreferredHeight(UiFactory.CreateButton("Leave", column, "Leave crew", OnLeave), 80);
 
             SetMenu(false);
         }
@@ -63,7 +63,8 @@ namespace Freelancer
                 m_Players.text = $"{count}/{SessionManager.MaxPlayers} freelancers";
             }
 
-            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+            // Esc closes the computer first (it handles that itself) before opening this menu.
+            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame && !GigComputerUI.UsedEscapeThisFrame)
                 SetMenu(!MenuOpen);
         }
 

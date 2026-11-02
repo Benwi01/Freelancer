@@ -9,6 +9,9 @@ EditorBuildSettings:
     path: Assets/_Project/Scenes/MainMenu.unity
     guid: 18ba73c700400b24ebf670eb42d8d823
   - enabled: 1
+    path: Assets/_Project/Scenes/Hub.unity
+    guid: c52638adfd39c1641b255291398ebb45
+  - enabled: 1
     path: Assets/_Project/Scenes/CakeDelivery.unity
     guid: 5ce497220fdc4fe4e8d6b184c2214fb9
   m_configObjects:

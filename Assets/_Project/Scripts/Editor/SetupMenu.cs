@@ -23,6 +23,7 @@ namespace Freelancer.EditorTools
             ImportTextResources();
             PrefabBuilder.BuildAllPrefabs();
             BuildMainMenuScene();
+            HubSceneBuilder.BuildHubScene();
             GigSceneBuilder.BuildCakeDeliveryScene();
             ConfigureBuildSettings();
             EditorSceneManager.OpenScene(SetupUtil.MenuScenePath);
@@ -84,6 +85,7 @@ namespace Freelancer.EditorTools
             EditorBuildSettings.scenes = new[]
             {
                 new EditorBuildSettingsScene(SetupUtil.MenuScenePath, true),
+                new EditorBuildSettingsScene(SetupUtil.HubScenePath, true),
                 new EditorBuildSettingsScene(SetupUtil.GigScenePath, true),
             };
             Debug.Log("[Freelancer] Build settings: MainMenu, CakeDelivery.");
