@@ -58,7 +58,6 @@ namespace Freelancer.EditorTools
             Box("DoorJambL", f, new Vector3(-5.63f, 1.25f, 3.92f), new Vector3(0.14f, 2.5f, 0.1f), s_Stone);
             Box("DoorJambR", f, new Vector3(-4.07f, 1.25f, 3.92f), new Vector3(0.14f, 2.5f, 0.1f), s_Stone);
             Box("DoorHead", f, new Vector3(-4.85f, 2.48f, 3.92f), new Vector3(1.9f, 0.16f, 0.1f), s_Stone);
-            Box("SignPlate", f, new Vector3(-4.85f, 3.1f, 3.945f), new Vector3(2.7f, 0.42f, 0.03f), s_Trim);
 
             var awning = SetupUtil.Empty("Awning", f, new Vector3(-4.85f, 2.78f, 3.5f)).transform;
             awning.localRotation = Quaternion.Euler(-16f, 0f, 0f);
@@ -69,7 +68,7 @@ namespace Freelancer.EditorTools
 
             Box("Doormat", f, new Vector3(-4.85f, 0.106f, 3.55f), new Vector3(1.3f, 0.012f, 0.6f),
                 SetupUtil.Mat("Doormat", Palette.Doormat));
-            Label("No. 42", f, new Vector3(-3.6f, 2.0f, 3.95f), Quaternion.identity, 0.16f, Palette.Stone);
+            Label("No. 42", f, new Vector3(-3.65f, 2.0f, 3.93f), Quaternion.identity, 0.09f, Palette.Trim, Palette.Stone);
         }
 
         // ---------- Buildings around it ----------
@@ -200,7 +199,7 @@ namespace Freelancer.EditorTools
                 Box("SideWindow", v, new Vector3(x, 1.65f, -10.45f), new Vector3(0.02f, 0.55f, 0.9f), glass);
                 Box("Taillight", v, new Vector3(1.03f * side, 1.0f, -6.48f), new Vector3(0.12f, 0.35f, 0.04f), tail);
                 Label("GigGrabber", v, new Vector3(1.125f * side, 1.1f, -10.45f), Quaternion.Euler(0f, -90f * side, 0f),
-                    0.14f, Palette.PartyWhite);
+                    0.1f, Palette.PartyWhite);
                 foreach (float z in new[] { -10.4f, -7.0f })
                     Vis(LowPolyMeshes.Cylinder, "Hubcap", v, new Vector3(1.19f * side, 0.35f, z), new Vector3(0.36f, 0.02f, 0.36f),
                         s_Stone, Quaternion.Euler(0f, 0f, 90f));
@@ -229,10 +228,16 @@ namespace Freelancer.EditorTools
             Sconce(s, new Vector3(-3f, 5.9f, 4.2f), 0f);
             Sconce(s, new Vector3(-6f, 7.9f, 13.8f), 90f);
 
+            // The roof blocks the sun, so each level gets a real (soft, warm) light.
+            Lamp(s, new Vector3(-5.4f, 2.2f, 5.4f), 6f, 1.6f);
+            Lamp(s, new Vector3(-4.6f, 4.2f, 13.8f), 6f, 1.6f);
+            Lamp(s, new Vector3(-3f, 6.2f, 5f), 6f, 1.6f);
+            Lamp(s, new Vector3(-4.6f, 8.2f, 13.8f), 6.5f, 1.8f);
+
             // Floor signs, getting more apologetic.
-            Label("FLOOR 1  (keep going)", s, new Vector3(-5.97f, 3.2f, 12.7f), Quaternion.Euler(0f, -90f, 0f), 0.13f, Palette.Trim);
-            Label("FLOOR 2  (sorry)", s, new Vector3(-4.2f, 5.25f, 4.22f), Quaternion.Euler(0f, 180f, 0f), 0.13f, Palette.Trim);
-            Label("FLOOR 3  (Brenda)", s, new Vector3(-5.97f, 7.2f, 12.7f), Quaternion.Euler(0f, -90f, 0f), 0.13f, Palette.Trim);
+            Label("FLOOR 1  (keep going)", s, new Vector3(-5.96f, 3.3f, 12.6f), Quaternion.Euler(0f, -90f, 0f), 0.09f, Palette.Trim, Palette.PartyWhite);
+            Label("FLOOR 2  (sorry)", s, new Vector3(-4.6f, 5.3f, 4.24f), Quaternion.Euler(0f, 180f, 0f), 0.09f, Palette.Trim, Palette.PartyWhite);
+            Label("FLOOR 3  (Brenda)", s, new Vector3(-5.96f, 7.3f, 12.6f), Quaternion.Euler(0f, -90f, 0f), 0.09f, Palette.Trim, Palette.PartyWhite);
 
             Box("WelcomeMat", s, new Vector3(-2.6f, 6.007f, 13.8f), new Vector3(0.6f, 0.012f, 1f),
                 SetupUtil.Mat("Doormat", Palette.Doormat));
@@ -260,6 +265,14 @@ namespace Freelancer.EditorTools
         {
             var a = Group("ApartmentDressing");
             const float floor = 6f;
+
+            // Ceiling lights (the roof blocks the sun).
+            foreach (var spot in new[] { new Vector3(1.2f, 8.98f, 8f), new Vector3(3.2f, 8.98f, 13f) })
+            {
+                Vis(LowPolyMeshes.Cylinder, "CeilingCanopy", a, spot, new Vector3(0.18f, 0.02f, 0.18f), s_Metal);
+                Vis(LowPolyMeshes.Sphere, "CeilingLamp", a, spot + Vector3.down * 0.1f, new Vector3(0.55f, 0.22f, 0.55f), s_Light);
+                Lamp(a, spot + Vector3.down * 0.4f, 9f, 2.2f);
+            }
 
             // Rug under the table.
             Box("RugBorder", a, new Vector3(3.4f, floor + 0.004f, 12f), new Vector3(3.8f, 0.008f, 2.8f),
@@ -318,8 +331,20 @@ namespace Freelancer.EditorTools
             }
             Box("BalloonWeight", a, new Vector3(5.25f, floor + 0.05f, 13.2f), new Vector3(0.12f, 0.1f, 0.12f), party[2]);
 
-            Box("Banner", a, new Vector3(3.2f, 8.2f, 15.975f), new Vector3(3.9f, 0.55f, 0.03f), party[0]);
-            Label("CONGRATS KAYLEIGH & TODD!", a, new Vector3(3.2f, 8.2f, 15.95f), Quaternion.identity, 0.17f, Palette.PartyWhite);
+            Label("CONGRATS KAYLEIGH & TODD!", a, new Vector3(3.2f, 8.2f, 15.96f), Quaternion.identity, 0.15f, Palette.PartyWhite,
+                Palette.PartyPink);
+        }
+
+        /// <summary>A warm point light (no shadows, cheap).</summary>
+        static void Lamp(Transform parent, Vector3 position, float range, float intensity)
+        {
+            var go = SetupUtil.Empty("Light", parent, position);
+            var light = go.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.color = Palette.WarmLight;
+            light.range = range;
+            light.intensity = intensity;
+            light.shadows = LightShadows.None;
         }
 
         static void WallArt(Transform parent, Vector3 wallPoint, Material canvas)

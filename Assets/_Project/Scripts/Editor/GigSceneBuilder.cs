@@ -101,7 +101,7 @@ namespace Freelancer.EditorTools
             var ramp = SetupUtil.Block("Ramp", van, new Vector3(0, 0.25f, -5.4f), new Vector3(1.6f, 0.1f, 2.3f), s_Stairs);
             ramp.transform.localRotation = Quaternion.Euler(rampAngle, 0, 0);
 
-            Label("FRESH CAKES (MOSTLY)", van, new Vector3(1.11f, 1.5f, -8f), Quaternion.Euler(0, -90, 0), 0.25f, s_Trim.color);
+            Label("FRESH CAKES (MOSTLY)", van, new Vector3(1.125f, 1.6f, -8f), Quaternion.Euler(0, -90, 0), 0.17f, s_Trim.color);
         }
 
         // ---------- Building ----------
@@ -115,7 +115,12 @@ namespace Freelancer.EditorTools
             SetupUtil.Block("Front_WestJamb", shell, new Vector3(-5.8f, top / 2, 4.1f), new Vector3(0.4f, top, 0.2f), s_Wall);
             SetupUtil.Block("Front_East", shell, new Vector3(0.95f, top / 2, 4.1f), new Vector3(10.1f, top, 0.2f), s_Wall);
             SetupUtil.Block("Front_Lintel", shell, new Vector3(-4.85f, (top + 2.4f) / 2, 4.1f), new Vector3(1.5f, top - 2.4f, 0.2f), s_Wall);
-            Label("DELIVERIES  ->  TOP FLOOR", shell, new Vector3(-4.85f, 3.1f, 3.92f), Quaternion.identity, 0.22f, Palette.Wall);
+            Label("DELIVERIES  >  TOP FLOOR", shell, new Vector3(-4.85f, 3.15f, 3.9f), Quaternion.identity, 0.13f, Palette.Wall, Palette.Trim);
+
+            // Roof over the stairwell and the apartment (its underside is the ceiling).
+            SetupUtil.Block("Roof", shell, new Vector3(0f, 9.1f, 10.1f), new Vector3(12.4f, 0.2f, 12.2f), s_Wall);
+            Deco(PrimitiveType.Cube, "RoofTop", shell, new Vector3(0f, 9.205f, 10.1f), new Vector3(12.4f, 0.01f, 12.2f),
+                SetupUtil.Mat("Roof", Palette.Roof));
 
             SetupUtil.Block("Back", shell, new Vector3(0, top / 2, 16.1f), new Vector3(12.4f, top, 0.2f), s_Wall);
             SetupUtil.Block("West", shell, new Vector3(-6.1f, top / 2, 10.1f), new Vector3(0.2f, top, 12.2f), s_StairWall);
@@ -186,8 +191,12 @@ namespace Freelancer.EditorTools
                 SetupUtil.Block("TableLeg", apt, tablePos + new Vector3(x, 0.38f, z), new Vector3(0.08f, 0.76f, 0.08f), wood);
             Deco(PrimitiveType.Cube, "TargetMat", apt, tablePos + new Vector3(0, 0.845f, 0), new Vector3(1.3f, 0.01f, 0.9f),
                 SetupUtil.Mat("Target", Palette.Target));
-            Label("PLACE CAKE HERE", apt, tablePos + new Vector3(0, 2.2f, 0), Quaternion.Euler(0, 90, 0), 0.3f,
-                Palette.Target);
+            // Hanging sign over the table (strings up to the ceiling).
+            Label("PLACE CAKE HERE", apt, tablePos + new Vector3(0, 2.05f, 0), Quaternion.Euler(0, 90, 0), 0.16f,
+                Palette.PartyWhite, Palette.Target);
+            foreach (float z in new[] { -0.5f, 0.5f })
+                Deco(PrimitiveType.Cube, "SignString", apt, tablePos + new Vector3(0.02f, 2.62f, z), new Vector3(0.01f, 0.76f, 0.01f),
+                    SetupUtil.Mat("WindowFrame", Palette.WindowFrame));
 
             // Furniture to bump into.
             var couch = SetupUtil.Mat("Couch", Palette.Couch);
@@ -195,7 +204,7 @@ namespace Freelancer.EditorTools
             SetupUtil.Block("CouchBack", apt, new Vector3(4.6f, 6.8f, 5.75f), new Vector3(2.4f, 1.2f, 0.25f), couch);
             SetupUtil.Block("Bookshelf", apt, new Vector3(0.2f, 7f, 15.7f), new Vector3(1.6f, 2f, 0.4f), wood);
 
-            Label("Brenda's Apartment", apt, new Vector3(-2.05f, 8.2f, 13.8f), Quaternion.Euler(0, 90, 0), 0.18f, s_Trim.color);
+            Label("Brenda's Apartment", apt, new Vector3(-2.04f, 8.68f, 13.8f), Quaternion.Euler(0, 90, 0), 0.09f, Palette.PartyWhite, Palette.Trim);
         }
 
         // ---------- Gameplay objects ----------
@@ -261,43 +270,38 @@ namespace Freelancer.EditorTools
             so.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        static Material WorldTextMaterial()
-        {
-            const string path = SetupUtil.MaterialsDir + "/M_WorldText.mat";
-            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
-            if (mat == null)
-            {
-                mat = new Material(Shader.Find("Freelancer/WorldText"));
-                AssetDatabase.CreateAsset(mat, path);
-            }
-            return mat;
-        }
-
-        /// <summary>World-space 3D text (TextMesh with the built-in font).</summary>
-        static void Label(string text, Transform parent, Vector3 position, Quaternion rotation, float size, Color color)
+        /// <summary>
+        /// Crisp world-space text (TextMesh Pro). Readable when looking along the rotation's +z;
+        /// with a plate colour it sits on a sign board sized to fit the text.
+        /// </summary>
+        static GameObject Label(string text, Transform parent, Vector3 position, Quaternion rotation, float letterHeight,
+            Color color, Color? plate = null)
         {
             var go = new GameObject("Label_" + text);
             go.transform.SetParent(parent, false);
-            go.transform.position = position;
-            go.transform.rotation = rotation;
-            var tm = go.AddComponent<TextMesh>();
-            var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            tm.font = font;
-            tm.text = text;
-            tm.characterSize = size * 0.1f;
-            tm.fontSize = 100;
-            tm.anchor = TextAnchor.MiddleCenter;
-            tm.alignment = TextAlignment.Center;
-            tm.color = color;
-            // Readable by someone looking along the label's +z (rotation picks who that is).
-            go.GetComponent<MeshRenderer>().sharedMaterial = font.material;
-            // Swap in a material that respects walls (the default one draws through everything).
-            var worldText = go.AddComponent<WorldText>();
-            var so = new SerializedObject(worldText);
-            so.FindProperty("material").objectReferenceValue = WorldTextMaterial();
-            so.ApplyModifiedPropertiesWithoutUndo();
-            worldText.enabled = false; // re-run OnEnable now that the material is set
-            worldText.enabled = true;
+            go.transform.SetPositionAndRotation(position, rotation);
+
+            var tmp = go.AddComponent<TMPro.TextMeshPro>();
+            tmp.text = text;
+            tmp.fontSize = letterHeight * 13f;
+            tmp.fontStyle = TMPro.FontStyles.Bold;
+            tmp.alignment = TMPro.TextAlignmentOptions.Center;
+            tmp.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
+            tmp.color = color;
+            tmp.rectTransform.sizeDelta = new Vector2(10f, 2f);
+
+            if (plate.HasValue)
+            {
+                tmp.ForceMeshUpdate();
+                Bounds b = tmp.textBounds;
+                float pad = letterHeight * 0.55f;
+                var board = SetupUtil.Visual(PrimitiveType.Cube, "Plate", go.transform,
+                    new Vector3(b.center.x, b.center.y, 0.015f),
+                    new Vector3(b.size.x + pad * 2f, b.size.y + pad * 2f, 0.02f),
+                    SetupUtil.Mat("Sign_" + ColorUtility.ToHtmlStringRGB(plate.Value), plate.Value));
+                board.isStatic = true;
+            }
+            return go;
         }
     }
 }

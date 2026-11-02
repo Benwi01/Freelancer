@@ -29,6 +29,7 @@ namespace Freelancer.EditorTools
         public static readonly Color Stairs = Hex("9DA3B4");
         public static readonly Color Trim = Hex("3E4E7A");
         public static readonly Color Hidden = Hex("7A7068");
+        public static readonly Color Roof = Hex("6E6872");
 
         // Van
         public static readonly Color VanWhite = Hex("F4F4F2");

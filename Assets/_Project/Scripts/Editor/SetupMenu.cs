@@ -20,12 +20,26 @@ namespace Freelancer.EditorTools
         {
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
             SetupUtil.EnsureFolders();
+            ImportTextResources();
             PrefabBuilder.BuildAllPrefabs();
             BuildMainMenuScene();
             GigSceneBuilder.BuildCakeDeliveryScene();
             ConfigureBuildSettings();
             EditorSceneManager.OpenScene(SetupUtil.MenuScenePath);
             Debug.Log("[Freelancer] Build All finished. Open MainMenu and press Play.");
+        }
+
+        /// <summary>TextMesh Pro's fonts and shaders (one-time import into Assets/TextMesh Pro).</summary>
+        [MenuItem("Freelancer/Setup/Import Text Resources", priority = 10)]
+        public static void ImportTextResources()
+        {
+            if (AssetDatabase.IsValidFolder("Assets/TextMesh Pro"))
+            {
+                Debug.Log("[Freelancer] TextMesh Pro resources already imported.");
+                return;
+            }
+            TMPro.TMP_PackageResourceImporter.ImportResources(true, false, false);
+            AssetDatabase.Refresh();
         }
 
         [MenuItem("Freelancer/Setup/Build Main Menu Scene", priority = 20)]
