@@ -79,6 +79,11 @@ namespace Freelancer.EditorTools
             else if (stage == 4 && EditorApplication.timeSinceStartup - s_StartedAt > 22)
             {
                 LogState("after delivery");
+                ScreenCapture.CaptureScreenshot("Temp/results-capture.png");
+                SessionState.SetInt(Key, 6);
+            }
+            else if (stage == 6 && EditorApplication.timeSinceStartup - s_StartedAt > 23)
+            {
                 SessionManager.Instance.ReturnToHub();
                 SessionState.SetInt(Key, 5);
             }
@@ -109,8 +114,19 @@ namespace Freelancer.EditorTools
                 var rag = p.GetComponent<PlayerRagdoll>();
                 playerText += $"down={p.IsDown} ragdoll={p.IsRagdolled} root={p.transform.position} hips={rag.Hips.position} ";
             }
+            var crew = CrewState.Current;
+            string crewText = crew == null ? "none" :
+                $"money={crew.Money} earned={crew.TotalEarned} best={crew.BestStars(GigCatalog.All[0].Id)}" +
+                (gig != null ? $" pay={gig.Pay} tip={gig.Tip} newBest={gig.NewBest}" : "");
             Debug.Log($"[Freelancer] SMOKE {label}: scene={UnityEngine.SceneManagement.SceneManager.GetActiveScene().name} " +
-                      $"host={nm != null && nm.IsHost} spawned=[{summary}] gig=[{gigText}] cake=[{cakeText}] player=[{playerText}]");
+                      $"crew=[{crewText}] host={nm != null && nm.IsHost} spawned=[{summary}] gig=[{gigText}] cake=[{cakeText}] player=[{playerText}]");
+        }
+
+        [MenuItem("Freelancer/Setup/Dev/Reset Crew Save", priority = 110)]
+        static void ResetCrewSave()
+        {
+            if (System.IO.File.Exists(CrewSave.FilePath)) System.IO.File.Delete(CrewSave.FilePath);
+            Debug.Log("[Freelancer] Crew save deleted: " + CrewSave.FilePath);
         }
     }
 }

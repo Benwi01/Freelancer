@@ -28,6 +28,8 @@ namespace Freelancer
         Text m_Review;
         Button m_Retry;
         Button m_ToHub;
+        Text m_Money;
+        Text m_NewBestText;
         Text m_Waiting;
         Image m_DamageFlash;
         float m_Flash;
@@ -157,6 +159,15 @@ namespace Freelancer
             m_Review.fontStyle = FontStyle.Italic;
             UiFactory.Place(m_Review.rectTransform, new Vector2(0.5f, 1f), new Vector2(880, 220), new Vector2(0, -270));
 
+            m_NewBestText = UiFactory.CreateText("NewBest", card.transform, "NEW BEST!", 30);
+            m_NewBestText.fontStyle = FontStyle.Bold;
+            m_NewBestText.color = Gold;
+            UiFactory.Place(m_NewBestText.rectTransform, new Vector2(0.5f, 1f), new Vector2(220, 50), new Vector2(330, -202));
+            m_NewBestText.rectTransform.localRotation = Quaternion.Euler(0, 0, 8);
+
+            m_Money = UiFactory.CreateText("Money", card.transform, "", 30);
+            UiFactory.Place(m_Money.rectTransform, new Vector2(0.5f, 0f), new Vector2(940, 50), new Vector2(0, 125));
+
             var row = UiFactory.CreateRect("Buttons", card.transform);
             UiFactory.Place(row, new Vector2(0.5f, 0f), new Vector2(880, 80), new Vector2(0, 30));
             var layout = row.gameObject.AddComponent<HorizontalLayoutGroup>();
@@ -167,6 +178,7 @@ namespace Freelancer
             m_ToHub = UiFactory.CreateButton("Hub", row, "Back to apartment", OnHub);
             m_Waiting = UiFactory.CreateText("Waiting", row, "Waiting for the host...", 28);
             UiFactory.CreateButton("Leave", row, "Leave crew", OnMenu);
+            foreach (var label in row.GetComponentsInChildren<Text>(true)) label.fontSize = 28;
         }
 
         void Update()
@@ -242,6 +254,12 @@ namespace Freelancer
             for (int i = 0; i < m_Stars.Length; i++)
                 m_Stars[i].color = i < gig.Stars ? Gold : Dim;
             m_Review.text = $"\"{CakeReviews.Get(gig.ReviewIndex)}\"\n<size=24>— {CakeReviews.Reviewer}</size>";
+
+            int funds = CrewState.Current != null ? CrewState.Current.Money : 0;
+            m_Money.text = delivered
+                ? $"Pay <b>${gig.Pay}</b>  +  Tip <b>${gig.Tip}</b>  =  <color=#7CFF7C><b>${gig.Pay + gig.Tip}</b></color>        Crew funds: <b>${funds}</b>"
+                : $"No cake, no cash.        Crew funds: <b>${funds}</b>";
+            m_NewBestText.gameObject.SetActive(delivered && gig.NewBest);
 
             bool isHost = NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer;
             m_Retry.gameObject.SetActive(isHost);

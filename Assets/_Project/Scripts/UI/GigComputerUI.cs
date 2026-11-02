@@ -30,7 +30,9 @@ namespace Freelancer
         GameObject m_Root;
         GigDefinition m_Selected;
         Image[] m_CardImages;
-        Text m_Title, m_Client, m_Tag, m_Stats, m_Description, m_Crew, m_HostOnly;
+        Text m_Title, m_Client, m_Tag, m_Stats, m_Description, m_Crew, m_HostOnly, m_Wallet, m_BestLabel;
+        Image[] m_BestStars;
+        Text[] m_CardLabels;
         Image m_TagChip;
         Button m_Accept;
 
@@ -99,6 +101,9 @@ namespace Freelancer
             var logo = UiFactory.CreateText("Logo", bar.transform, "GigGrabber", 46, TextAnchor.MiddleLeft);
             logo.fontStyle = FontStyle.Bold;
             UiFactory.Place(logo.rectTransform, new Vector2(0f, 0.5f), new Vector2(420, 70), new Vector2(32, 0));
+            m_Wallet = UiFactory.CreateText("Wallet", bar.transform, "", 26, TextAnchor.MiddleLeft);
+            m_Wallet.fontStyle = FontStyle.Bold;
+            UiFactory.Place(m_Wallet.rectTransform, new Vector2(0f, 0.5f), new Vector2(360, 50), new Vector2(330, 0));
             var tagline = UiFactory.CreateText("Tagline", bar.transform, "Be your own boss.*", 24, TextAnchor.MiddleRight);
             tagline.color = new Color(1f, 1f, 1f, 0.85f);
             UiFactory.Place(tagline.rectTransform, new Vector2(1f, 0.5f), new Vector2(500, 40), new Vector2(-110, 0));
@@ -117,6 +122,7 @@ namespace Freelancer
             UiFactory.Place(list, new Vector2(0f, 1f), new Vector2(400, 560), new Vector2(32, -150));
 
             m_CardImages = new Image[GigCatalog.All.Length];
+            m_CardLabels = new Text[GigCatalog.All.Length];
             for (int i = 0; i < GigCatalog.All.Length; i++)
             {
                 var gig = GigCatalog.All[i];
@@ -124,6 +130,7 @@ namespace Freelancer
                     $"<b>{gig.Title}</b>\n<size=22>${gig.Pay}   ·   {FormatTime(gig.Minutes)}   ·   {gig.Tag}</size>", () => Select(gig));
                 StyleCard(card, Card);
                 m_CardImages[i] = card.GetComponent<Image>();
+                m_CardLabels[i] = card.GetComponentInChildren<Text>();
             }
             var soon = UiFactory.CreateButton("ComingSoon", list,
                 "<b>More gigs coming soon</b>\n<size=22>New listings every week*</size>", () => { });
@@ -150,6 +157,19 @@ namespace Freelancer
             m_Tag = UiFactory.CreateText("Tag", m_TagChip.transform, "", 22);
             m_Tag.fontStyle = FontStyle.Bold;
             UiFactory.Stretch(m_Tag.rectTransform);
+
+            // Best rating: label plus five diamonds (the font has no star glyph).
+            m_BestLabel = DetailText("BestLabel", details.transform, 22, new Vector2(330, 40), new Vector2(215, -136));
+            m_BestLabel.color = Muted;
+            m_BestStars = new Image[5];
+            for (int i = 0; i < 5; i++)
+            {
+                var d = UiFactory.CreatePanel("BestStar" + i, details.transform, Muted);
+                UiFactory.Place(d.rectTransform, new Vector2(0f, 1f), new Vector2(20, 20), new Vector2(345 + i * 32, -146));
+                d.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+                d.rectTransform.localRotation = Quaternion.Euler(0, 0, 45);
+                m_BestStars[i] = d;
+            }
 
             m_Stats = DetailText("Stats", details.transform, 28, new Vector2(700, 44), new Vector2(30, -196));
             m_Description = DetailText("Description", details.transform, 24, new Vector2(700, 250), new Vector2(30, -256));
@@ -202,10 +222,32 @@ namespace Freelancer
             m_Stats.text = $"<b>${gig.Pay}</b> pay        <b>{FormatTime(gig.Minutes)}</b> time limit        <b>1-{SessionManager.MaxPlayers}</b> crew";
             m_Description.text = gig.Description;
             RefreshCrew();
+            RefreshBest();
+        }
+
+        void RefreshBest()
+        {
+            var crew = CrewState.Current;
+            for (int i = 0; i < GigCatalog.All.Length; i++)
+            {
+                var g = GigCatalog.All[i];
+                int b = crew != null ? crew.BestStars(g.Id) : 0;
+                string best = b > 0 ? $"Best {b}/5" : "New!";
+                m_CardLabels[i].text = $"<b>{g.Title}</b>\n<size=21>${g.Pay}  ·  {FormatTime(g.Minutes)}  ·  {g.Tag}  ·  {best}</size>";
+            }
+            if (m_Selected == null) return;
+            int stars = crew != null ? crew.BestStars(m_Selected.Id) : 0;
+            m_BestLabel.text = stars > 0 ? "Your best:" : "Your best: not delivered yet";
+            for (int i = 0; i < m_BestStars.Length; i++)
+            {
+                m_BestStars[i].gameObject.SetActive(stars > 0);
+                m_BestStars[i].color = i < stars ? new Color(1f, 0.75f, 0.2f) : new Color(0.85f, 0.84f, 0.8f);
+            }
         }
 
         void RefreshCrew()
         {
+            m_Wallet.text = CrewState.Current != null ? $"Crew funds: ${CrewState.Current.Money}" : "";
             var nm = NetworkManager.Singleton;
             bool isHost = nm != null && nm.IsServer;
             m_Accept.gameObject.SetActive(isHost);

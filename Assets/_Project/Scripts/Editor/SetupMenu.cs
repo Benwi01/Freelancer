@@ -67,7 +67,11 @@ namespace Freelancer.EditorTools
             nm.NetworkConfig.ConnectionApproval = false;
             nm.NetworkConfig.PlayerPrefab = null; // players are spawned by the gig, not on connect
             nm.NetworkConfig.Prefabs.NetworkPrefabsLists = new List<NetworkPrefabsList> { GetOrCreatePrefabList() };
-            root.AddComponent<SessionManager>();
+            var session = root.AddComponent<SessionManager>();
+            var sessionSo = new SerializedObject(session);
+            sessionSo.FindProperty("crewStatePrefab").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<NetworkObject>(PrefabBuilder.CrewStatePath);
+            sessionSo.ApplyModifiedPropertiesWithoutUndo();
 
             var menu = new GameObject("MainMenu").AddComponent<MainMenuUI>();
             var menuSo = new SerializedObject(menu);

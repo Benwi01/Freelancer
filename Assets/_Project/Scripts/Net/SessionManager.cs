@@ -23,6 +23,8 @@ namespace Freelancer
         [Tooltip("The crew's apartment: where the host goes once the session is up, and where gigs return to.")]
         [SerializeField] string hubSceneName = "Hub";
         [SerializeField] string menuSceneName = "MainMenu";
+        [Tooltip("Spawned by the host when a session starts; holds the crew's money and best ratings.")]
+        [SerializeField] NetworkObject crewStatePrefab;
 
         public ISession ActiveSession { get; private set; }
         public bool IsBusy { get; private set; }
@@ -44,14 +46,28 @@ namespace Freelancer
         {
             // Covers local (no Relay) games too: if the connection drops, go back to the menu.
             if (NetworkManager.Singleton != null)
+            {
                 NetworkManager.Singleton.OnClientStopped += OnClientStopped;
+                NetworkManager.Singleton.OnServerStarted += OnServerStarted;
+            }
+        }
+
+        void OnServerStarted()
+        {
+            if (crewStatePrefab == null) return;
+            // Lives for the whole session, across every scene load.
+            var crew = Instantiate(crewStatePrefab);
+            crew.Spawn(destroyWithScene: false);
         }
 
         void OnDestroy()
         {
             if (Instance == this) Instance = null;
             if (NetworkManager.Singleton != null)
+            {
                 NetworkManager.Singleton.OnClientStopped -= OnClientStopped;
+                NetworkManager.Singleton.OnServerStarted -= OnServerStarted;
+            }
         }
 
         void OnClientStopped(bool wasHost)

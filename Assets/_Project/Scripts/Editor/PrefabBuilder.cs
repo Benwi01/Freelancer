@@ -31,6 +31,7 @@ namespace Freelancer.EditorTools
             Register(midDebris);
             Register(BuildCake(topDebris, midDebris));
             Register(BuildGigDirector());
+            Register(BuildCrewState());
 
             EditorUtility.SetDirty(list);
             AssetDatabase.SaveAssets();
@@ -43,6 +44,7 @@ namespace Freelancer.EditorTools
         public const string TopTierPath = SetupUtil.PrefabsDir + "/CakeTier_Top.prefab";
         public const string MidTierPath = SetupUtil.PrefabsDir + "/CakeTier_Middle.prefab";
         public const string GigDirectorPath = SetupUtil.PrefabsDir + "/GigDirector.prefab";
+        public const string CrewStatePath = SetupUtil.PrefabsDir + "/CrewState.prefab";
 
         /// <summary>Radius and height of each tier, bottom first.</summary>
         static readonly (float radius, float height)[] CakeTiers = { (0.55f, 0.4f), (0.4f, 0.34f), (0.27f, 0.3f) };
@@ -166,6 +168,14 @@ namespace Freelancer.EditorTools
             root.AddComponent<NetworkObject>();
             root.AddComponent<GigDirector>();
             return Save(root, GigDirectorPath);
+        }
+
+        static GameObject BuildCrewState()
+        {
+            var root = new GameObject("CrewState");
+            root.AddComponent<NetworkObject>();
+            root.AddComponent<CrewState>();
+            return Save(root, CrewStatePath);
         }
 
         static void Register(GameObject prefab) => SetupMenu.RegisterNetworkPrefab(prefab);

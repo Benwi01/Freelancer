@@ -8,6 +8,7 @@ namespace Freelancer
     public class HubHud : MonoBehaviour
     {
         Text m_Hint;
+        Text m_Funds;
 
         void Start()
         {
@@ -15,6 +16,9 @@ namespace Freelancer
             canvas.transform.SetParent(transform, false);
             m_Hint = UiFactory.CreateText("Hint", canvas.transform, "", 30, TextAnchor.LowerCenter);
             UiFactory.Place(m_Hint.rectTransform, new Vector2(0.5f, 0f), new Vector2(1400, 60), new Vector2(0, 40));
+            m_Funds = UiFactory.CreateText("Funds", canvas.transform, "", 34, TextAnchor.UpperLeft);
+            UiFactory.Place(m_Funds.rectTransform, new Vector2(0f, 1f), new Vector2(600, 100), new Vector2(30, -20));
+
             CursorLock.ScreenWantsCursor = false;
             CursorLock.Refresh();
         }
@@ -25,6 +29,10 @@ namespace Freelancer
             bool isHost = nm != null && nm.IsServer;
             bool computerOpen = GigComputerUI.Instance != null && GigComputerUI.Instance.IsOpen;
             m_Hint.gameObject.SetActive(!computerOpen);
+            var crew = CrewState.Current;
+            m_Funds.text = crew != null
+                ? $"<size=22>CREW FUNDS</size>\n<b>${crew.Money}</b>"
+                : "";
             m_Hint.text = isHost
                 ? "Rent's due. Find a gig on the computer and press <b>E</b>."
                 : "Wait for the host to pick a gig (or browse the computer with <b>E</b>).";

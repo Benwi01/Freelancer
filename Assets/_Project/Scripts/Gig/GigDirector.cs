@@ -28,6 +28,9 @@ namespace Freelancer
         readonly NetworkVariable<int> m_Stars = new(0);
         readonly NetworkVariable<int> m_ReviewIndex = new(-1);
         readonly NetworkVariable<float> m_FinalCondition = new(0f);
+        readonly NetworkVariable<int> m_Pay = new(0);
+        readonly NetworkVariable<int> m_Tip = new(0);
+        readonly NetworkVariable<bool> m_NewBest = new(false);
 
         float m_SettledFor;
 
@@ -41,6 +44,11 @@ namespace Freelancer
         public int Stars => m_Stars.Value;
         public int ReviewIndex => m_ReviewIndex.Value;
         public float FinalCondition => m_FinalCondition.Value;
+        public int Pay => m_Pay.Value;
+        public int Tip => m_Tip.Value;
+        public bool NewBest => m_NewBest.Value;
+        /// <summary>Which gig this scene is (from the catalogue).</summary>
+        public GigDefinition Gig => GigCatalog.ByScene(gameObject.scene.name);
         public bool IsOver => m_Phase.Value is GigPhase.Delivered or GigPhase.Failed;
         public bool CakeCanTakeDamage => m_Phase.Value == GigPhase.Running;
 
@@ -135,6 +143,14 @@ namespace Freelancer
 
         void Finish(GigPhase phase, GigFailReason reason, int stars, float condition)
         {
+            // Get paid (or not) and remember the best rating. Set before the phase changes so
+            // the results screen has the numbers the moment it appears.
+            bool delivered = phase == GigPhase.Delivered;
+            var (pay, tip) = GigPayout.Calculate(Gig, delivered, stars);
+            m_Pay.Value = pay;
+            m_Tip.Value = tip;
+            m_NewBest.Value = CrewState.Current != null && CrewState.Current.RecordGig(Gig, delivered, stars, pay, tip);
+
             m_Stars.Value = stars;
             m_ReviewIndex.Value = CakeReviews.PickIndex(stars);
             m_FinalCondition.Value = condition;

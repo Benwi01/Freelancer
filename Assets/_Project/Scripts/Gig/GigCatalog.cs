@@ -23,6 +23,13 @@ namespace Freelancer
             },
         };
 
+        public static GigDefinition ByScene(string sceneName)
+        {
+            foreach (var gig in All)
+                if (gig.Scene == sceneName) return gig;
+            return null;
+        }
+
         public static GigDefinition ById(string id)
         {
             foreach (var gig in All)
