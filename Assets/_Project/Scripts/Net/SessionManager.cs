@@ -141,6 +141,37 @@ namespace Freelancer
             }
         }
 
+        /// <summary>
+        /// Host without Relay on 127.0.0.1 (no Unity Cloud needed). Handy for quick tests with
+        /// Multiplayer Play Mode on one machine.
+        /// </summary>
+        public void HostLocal()
+        {
+            if (IsBusy || NetworkRootGuard.IsOnline) return;
+            SetLocalAddress();
+            if (NetworkManager.Singleton.StartHost())
+            {
+                SetStatus("Local host on 127.0.0.1:" + LocalPort);
+                NetworkManager.Singleton.SceneManager.LoadScene(gigSceneName, LoadSceneMode.Single);
+            }
+            else SetStatus("Could not start local host (port in use?).");
+        }
+
+        public void JoinLocal()
+        {
+            if (IsBusy || NetworkRootGuard.IsOnline) return;
+            SetLocalAddress();
+            SetStatus(NetworkManager.Singleton.StartClient() ? "Connecting to local host..." : "Could not start client.");
+        }
+
+        const ushort LocalPort = 7777;
+
+        static void SetLocalAddress()
+        {
+            var transport = NetworkManager.Singleton.GetComponent<Unity.Netcode.Transports.UTP.UnityTransport>();
+            transport.SetConnectionData("127.0.0.1", LocalPort);
+        }
+
         /// <summary>Leave the session, stop Netcode and go back to the main menu.</summary>
         public async Task LeaveAsync()
         {

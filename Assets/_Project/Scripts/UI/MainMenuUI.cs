@@ -68,6 +68,18 @@ namespace Freelancer
             var quit = UiFactory.CreateButton("Quit", column, "Quit", OnQuit);
             UiFactory.SetPreferredHeight(quit, 80);
 
+            // Dev row: skip Relay and connect on this machine.
+            var dev = UiFactory.CreateRect("DevButtons", canvas.transform);
+            UiFactory.Place(dev, new Vector2(0f, 0f), new Vector2(560, 60), new Vector2(30, 30));
+            var row = dev.gameObject.AddComponent<HorizontalLayoutGroup>();
+            row.spacing = 12;
+            row.childControlWidth = row.childControlHeight = true;
+            row.childForceExpandWidth = row.childForceExpandHeight = true;
+            UiFactory.CreateButton("LocalHost", dev, "Local host", () => SessionManager.Instance?.HostLocal())
+                .GetComponentInChildren<Text>().fontSize = 24;
+            UiFactory.CreateButton("LocalJoin", dev, "Local join", () => SessionManager.Instance?.JoinLocal())
+                .GetComponentInChildren<Text>().fontSize = 24;
+
             m_Status = UiFactory.CreateText("Status", canvas.transform, "", 32);
             UiFactory.Place(m_Status.rectTransform, new Vector2(0.5f, 0f), new Vector2(1600, 80), new Vector2(0, 80));
         }
