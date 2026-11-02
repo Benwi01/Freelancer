@@ -117,7 +117,6 @@ namespace Freelancer.EditorTools
             SetupUtil.Block("Front_WestJamb", shell, new Vector3(-5.8f, top / 2, 4.1f), new Vector3(0.4f, top, 0.2f), s_Wall);
             SetupUtil.Block("Front_East", shell, new Vector3(0.95f, top / 2, 4.1f), new Vector3(10.1f, top, 0.2f), s_Wall);
             SetupUtil.Block("Front_Lintel", shell, new Vector3(-4.85f, (top + 2.4f) / 2, 4.1f), new Vector3(1.5f, top - 2.4f, 0.2f), s_Wall);
-            Label("Brendas Birthday On Top Floor", shell, new Vector3(-4.85f, 3.15f, 3.9f), Quaternion.identity, 0.13f, Palette.Wall, Palette.Trim);
 
             // Roof over the stairwell and the apartment (its underside is the ceiling).
             SetupUtil.Block("Roof", shell, new Vector3(0f, 9.1f, 10.1f), new Vector3(12.4f, 0.2f, 12.2f), s_Wall);

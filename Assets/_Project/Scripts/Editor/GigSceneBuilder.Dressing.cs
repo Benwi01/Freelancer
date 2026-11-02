@@ -68,7 +68,24 @@ namespace Freelancer.EditorTools
 
             Box("Doormat", f, new Vector3(-4.85f, 0.106f, 3.55f), new Vector3(1.3f, 0.012f, 0.6f),
                 SetupUtil.Mat("Doormat", Palette.Doormat));
-            Label("No. 42", f, new Vector3(-3.65f, 2.0f, 3.93f), Quaternion.identity, 0.09f, Palette.Trim, Palette.Stone);
+            Label("No. 42", f, new Vector3(-3.62f, 2.2f, 3.93f), Quaternion.identity, 0.09f, Palette.Trim, Palette.Stone);
+            WeddingPoster(f, new Vector3(-3.62f, 1.5f, 3.955f));
+        }
+
+        /// <summary>A paper poster taped to the brick next to the front door, pointing the way to the wedding.</summary>
+        static void WeddingPoster(Transform parent, Vector3 wallPoint)
+        {
+            var p = SetupUtil.Empty("WeddingPoster", parent, wallPoint).transform;
+            p.localRotation = Quaternion.Euler(0f, 0f, -2.5f); // taped up a bit crooked
+            Box("Paper", p, Vector3.zero, new Vector3(0.62f, 0.86f, 0.01f), SetupUtil.Mat("PartyWhite", Palette.PartyWhite));
+            Box("Header", p, new Vector3(0f, 0.33f, -0.006f), new Vector3(0.62f, 0.2f, 0.002f), SetupUtil.Mat("PartyPink", Palette.PartyPink));
+            var tape = SetupUtil.Mat("Tape", new Color(0.93f, 0.9f, 0.8f));
+            Box("TapeL", p, new Vector3(-0.29f, 0.42f, -0.008f), new Vector3(0.14f, 0.045f, 0.003f), tape, Quaternion.Euler(0f, 0f, 35f));
+            Box("TapeR", p, new Vector3(0.29f, 0.42f, -0.008f), new Vector3(0.14f, 0.045f, 0.003f), tape, Quaternion.Euler(0f, 0f, -35f));
+
+            Label("WEDDING", parent, p.TransformPoint(new Vector3(0f, 0.33f, -0.01f)), p.rotation, 0.085f, Palette.PartyWhite);
+            Label("Kayleigh\n&\nTodd", parent, p.TransformPoint(new Vector3(0f, 0.02f, -0.01f)), p.rotation, 0.06f, Palette.Rug);
+            Label("Top floor - flat 3B", parent, p.TransformPoint(new Vector3(0f, -0.3f, -0.01f)), p.rotation, 0.035f, Palette.Trim);
         }
 
         // ---------- Buildings around it ----------
