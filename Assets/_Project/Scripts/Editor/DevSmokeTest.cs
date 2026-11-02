@@ -47,6 +47,8 @@ namespace Freelancer.EditorTools
             else if (stage == 2 && EditorApplication.timeSinceStartup - s_StartedAt > 12)
             {
                 LogState("after briefing");
+                foreach (var p in Object.FindObjectsByType<PlayerKnockdown>())
+                    p.KnockDown(p.transform.forward, 8f);
                 // Cheat: drop the cake onto the table and see if the gig completes.
                 var cake = CakeCondition.Current;
                 var zone = DeliveryZone.Current;
@@ -62,7 +64,12 @@ namespace Freelancer.EditorTools
                 }
                 SessionState.SetInt(Key, 3);
             }
-            else if (stage == 3 && EditorApplication.timeSinceStartup - s_StartedAt > 18)
+            else if (stage == 3 && EditorApplication.timeSinceStartup - s_StartedAt > 13.5)
+            {
+                LogState("mid knockdown");
+                SessionState.SetInt(Key, 4);
+            }
+            else if (stage == 4 && EditorApplication.timeSinceStartup - s_StartedAt > 18)
             {
                 LogState("after delivery");
                 SessionState.SetInt(Key, 0);
@@ -83,8 +90,14 @@ namespace Freelancer.EditorTools
                 $"{gig.Phase} timeLeft={gig.TimeLeft:0.0} stars={gig.Stars} review={gig.ReviewIndex} fail={gig.FailReason}";
             string cakeText = cake == null ? "none" :
                 $"{cake.Condition:0}% tiers={cake.TiersLeft} pos={cake.transform.position}";
+            string playerText = "";
+            foreach (var p in Object.FindObjectsByType<PlayerKnockdown>())
+            {
+                var rag = p.GetComponent<PlayerRagdoll>();
+                playerText += $"down={p.IsDown} ragdoll={p.IsRagdolled} root={p.transform.position} hips={rag.Hips.position} ";
+            }
             Debug.Log($"[Freelancer] SMOKE {label}: scene={UnityEngine.SceneManagement.SceneManager.GetActiveScene().name} " +
-                      $"host={nm != null && nm.IsHost} spawned=[{summary}] gig=[{gigText}] cake=[{cakeText}]");
+                      $"host={nm != null && nm.IsHost} spawned=[{summary}] gig=[{gigText}] cake=[{cakeText}] player=[{playerText}]");
         }
     }
 }

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Unity.Netcode;
 using Unity.Netcode.Components;
 using UnityEditor;
@@ -196,23 +197,7 @@ namespace Freelancer.EditorTools
             nt.SyncScaleX = nt.SyncScaleY = nt.SyncScaleZ = false;
             nt.Interpolate = true;
 
-            var shirt = SetupUtil.Mat("PlayerShirt", Color.white);
-            var skin = SetupUtil.Mat("Skin", new Color(0.95f, 0.78f, 0.62f));
-            var dark = SetupUtil.Mat("Visor", new Color(0.1f, 0.1f, 0.12f), 0.8f);
-
-            // Body pivots at the feet so it tips over nicely.
-            var body = SetupUtil.Empty("Body", root.transform, Vector3.zero).transform;
-            var torso = SetupUtil.Visual(PrimitiveType.Capsule, "Torso", body, new Vector3(0, 0.75f, 0),
-                new Vector3(0.7f, 0.75f, 0.7f), shirt);
-            var head = SetupUtil.Empty("Head", body, new Vector3(0, 1.6f, 0)).transform;
-            SetupUtil.Visual(PrimitiveType.Sphere, "Skull", head, Vector3.zero, Vector3.one * 0.42f, skin);
-            SetupUtil.Visual(PrimitiveType.Cube, "Visor", head, new Vector3(0, 0.03f, 0.18f),
-                new Vector3(0.32f, 0.1f, 0.1f), dark);
-            // A cap so the joke reads from far away.
-            var cap = SetupUtil.Visual(PrimitiveType.Cylinder, "Cap", head, new Vector3(0, 0.2f, 0.02f),
-                new Vector3(0.44f, 0.05f, 0.44f), shirt);
-            SetupUtil.Visual(PrimitiveType.Cube, "Brim", head, new Vector3(0, 0.18f, 0.24f),
-                new Vector3(0.3f, 0.03f, 0.18f), shirt);
+            var rig = BuildPlayerBody(root.transform);
 
             var cameraPivot = SetupUtil.Empty("CameraPivot", root.transform, new Vector3(0, PlayerMotor.EyeHeight, 0)).transform;
             var camGo = new GameObject("PlayerCamera", typeof(Camera), typeof(AudioListener));
@@ -227,24 +212,183 @@ namespace Freelancer.EditorTools
             var motor = root.AddComponent<PlayerMotor>();
             var knock = root.AddComponent<PlayerKnockdown>();
             root.AddComponent<PlayerGrabber>();
+            var bodyAnim = root.AddComponent<PlayerBody>();
+            var ragdoll = root.AddComponent<PlayerRagdoll>();
 
             var so = new SerializedObject(motor);
             so.FindProperty("cameraPivot").objectReferenceValue = cameraPivot;
             so.FindProperty("playerCamera").objectReferenceValue = cam;
-            so.FindProperty("headVisual").objectReferenceValue = head;
-            var tint = so.FindProperty("tintRenderers");
-            var tinted = new[] { torso.GetComponent<Renderer>(), cap.GetComponent<Renderer>(),
-                head.Find("Brim").GetComponent<Renderer>() };
-            tint.arraySize = tinted.Length;
-            for (int i = 0; i < tinted.Length; i++) tint.GetArrayElementAtIndex(i).objectReferenceValue = tinted[i];
+            SetObjects(so.FindProperty("tintRenderers"), rig.Tinted.ToArray());
             so.ApplyModifiedPropertiesWithoutUndo();
 
             so = new SerializedObject(knock);
-            so.FindProperty("body").objectReferenceValue = body;
             so.FindProperty("cameraPivot").objectReferenceValue = cameraPivot;
             so.ApplyModifiedPropertiesWithoutUndo();
 
+            so = new SerializedObject(bodyAnim);
+            foreach (var (field, bone) in rig.Bones)
+                so.FindProperty(field).objectReferenceValue = bone;
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            so = new SerializedObject(ragdoll);
+            so.FindProperty("bodyRoot").objectReferenceValue = rig.Root;
+            SetObjects(so.FindProperty("parts"), rig.Parts.ToArray());
+            so.ApplyModifiedPropertiesWithoutUndo();
+
             return Save(root, PlayerPath);
+        }
+
+        class PlayerRig
+        {
+            public Transform Root;
+            public readonly List<(string field, Transform bone)> Bones = new();
+            public readonly List<Rigidbody> Parts = new();
+            public readonly List<Renderer> Tinted = new();
+        }
+
+        /// <summary>
+        /// Low-poly jointed body. Each bone is a ragdoll part (kinematic until knocked down) with
+        /// its visuals as children. Feet at 0, eyes at 1.6, top of the head about 1.8.
+        /// </summary>
+        static PlayerRig BuildPlayerBody(Transform parent)
+        {
+            var shirt = SetupUtil.Mat("PlayerShirt", Color.white);
+            var skin = SetupUtil.Mat("Skin", new Color(0.96f, 0.78f, 0.62f));
+            var pants = SetupUtil.Mat("Pants", new Color(0.26f, 0.32f, 0.45f));
+            var shoes = SetupUtil.Mat("Shoes", new Color(0.18f, 0.14f, 0.13f));
+            var eyes = SetupUtil.Mat("Eyes", new Color(0.08f, 0.08f, 0.1f), 0.6f);
+            var pompom = SetupUtil.Mat("Pompom", new Color(0.97f, 0.96f, 0.92f));
+            Mesh capsule = LowPolyMeshes.Capsule, sphere = LowPolyMeshes.Sphere, cylinder = LowPolyMeshes.Cylinder;
+
+            var rig = new PlayerRig { Root = SetupUtil.Empty("Body", parent, Vector3.zero).transform };
+
+            Transform Bone(string name, string field, Transform boneParent, Vector3 localPos)
+            {
+                var t = SetupUtil.Empty(name, boneParent, localPos).transform;
+                rig.Bones.Add((field, t));
+                return t;
+            }
+
+            void Vis(Mesh mesh, string name, Transform bone, Vector3 pos, Vector3 scale, Material mat, bool tint = false)
+            {
+                var r = LowPolyMeshes.Visual(mesh, name, bone, pos, scale, mat).GetComponent<Renderer>();
+                if (tint) rig.Tinted.Add(r);
+            }
+
+            Rigidbody Last() => rig.Parts[rig.Parts.Count - 1];
+
+            // Core
+            var hips = Bone("Hips", "hips", rig.Root, new Vector3(0, 0.82f, 0));
+            Vis(capsule, "Pelvis", hips, new Vector3(0, -0.02f, 0), new Vector3(0.42f, 0.13f, 0.3f), pants);
+            Part(rig, hips, 7f, null, Box(hips, new Vector3(0, -0.02f, 0), new Vector3(0.4f, 0.24f, 0.28f)),
+                Vector3.up, 0, 0, 0);
+            var hipsPart = Last();
+
+            var torso = Bone("Torso", "torso", hips, new Vector3(0, 0.06f, 0));
+            Vis(capsule, "Chest", torso, new Vector3(0, 0.25f, 0), new Vector3(0.54f, 0.29f, 0.38f), shirt, tint: true);
+            Part(rig, torso, 9f, hipsPart, Capsule(torso, new Vector3(0, 0.25f, 0), 0.22f, 0.58f),
+                Vector3.up, -15, 15, 25);
+            var torsoPart = Last();
+
+            var head = Bone("Head", "head", torso, new Vector3(0, 0.5f, 0));
+            Vis(sphere, "Skull", head, new Vector3(0, 0.2f, 0), Vector3.one * 0.46f, skin);
+            SetupUtil.Visual(PrimitiveType.Cube, "EyeL", head, new Vector3(-0.09f, 0.22f, 0.205f),
+                new Vector3(0.06f, 0.1f, 0.04f), eyes);
+            SetupUtil.Visual(PrimitiveType.Cube, "EyeR", head, new Vector3(0.09f, 0.22f, 0.205f),
+                new Vector3(0.06f, 0.1f, 0.04f), eyes);
+            Vis(sphere, "Beanie", head, new Vector3(0, 0.29f, -0.01f), new Vector3(0.49f, 0.36f, 0.49f), shirt, tint: true);
+            Vis(cylinder, "BeanieCuff", head, new Vector3(0, 0.27f, -0.01f), new Vector3(0.5f, 0.035f, 0.5f), shirt, tint: true);
+            Vis(sphere, "Pompom", head, new Vector3(0, 0.49f, -0.01f), Vector3.one * 0.13f, pompom);
+            Part(rig, head, 3.5f, torsoPart, Sphere(head, new Vector3(0, 0.2f, 0), 0.23f),
+                Vector3.up, -30, 30, 35);
+
+            // Arms (left first, then right; PlayerRagdoll expects parent-first order)
+            foreach (var side in new[] { -1f, 1f })
+            {
+                string s = side < 0 ? "L" : "R";
+                var upper = Bone("UpperArm" + s, "upperArm" + s, torso, new Vector3(0.34f * side, 0.44f, 0));
+                Vis(capsule, "Sleeve", upper, new Vector3(0, -0.14f, 0), new Vector3(0.15f, 0.16f, 0.15f), shirt, tint: true);
+                Part(rig, upper, 1.6f, torsoPart, Capsule(upper, new Vector3(0, -0.15f, 0), 0.07f, 0.34f),
+                    Vector3.up, -40, 40, 75);
+
+                var lower = Bone("LowerArm" + s, "lowerArm" + s, upper, new Vector3(0, -0.29f, 0));
+                Vis(capsule, "Forearm", lower, new Vector3(0, -0.12f, 0), new Vector3(0.12f, 0.14f, 0.12f), skin);
+                Vis(sphere, "Hand", lower, new Vector3(0, -0.29f, 0), Vector3.one * 0.15f, skin);
+                Part(rig, lower, 1.1f, Last(), Capsule(lower, new Vector3(0, -0.17f, 0), 0.07f, 0.4f),
+                    Vector3.right, -70, 70, 8);
+            }
+
+            // Legs
+            foreach (var side in new[] { -1f, 1f })
+            {
+                string s = side < 0 ? "L" : "R";
+                var upper = Bone("UpperLeg" + s, "upperLeg" + s, hips, new Vector3(0.12f * side, -0.05f, 0));
+                Vis(capsule, "Thigh", upper, new Vector3(0, -0.18f, 0), new Vector3(0.18f, 0.2f, 0.18f), pants);
+                Part(rig, upper, 3f, hipsPart, Capsule(upper, new Vector3(0, -0.18f, 0), 0.085f, 0.4f),
+                    Vector3.up, -20, 20, 50);
+
+                var lower = Bone("LowerLeg" + s, "lowerLeg" + s, upper, new Vector3(0, -0.37f, 0));
+                Vis(capsule, "Shin", lower, new Vector3(0, -0.17f, 0), new Vector3(0.15f, 0.18f, 0.15f), pants);
+                SetupUtil.Visual(PrimitiveType.Cube, "Shoe", lower, new Vector3(0, -0.36f, 0.05f),
+                    new Vector3(0.15f, 0.09f, 0.27f), shoes);
+                Part(rig, lower, 2.5f, Last(), Capsule(lower, new Vector3(0, -0.2f, 0), 0.08f, 0.44f),
+                    Vector3.right, -70, 70, 8);
+            }
+
+            return rig;
+        }
+
+        /// <summary>Make a bone a ragdoll part: kinematic rigidbody, disabled collider, joint to its parent part.</summary>
+        static void Part(PlayerRig rig, Transform bone, float mass, Rigidbody parentPart, Collider col,
+            Vector3 twistAxis, float lowTwist, float highTwist, float swing)
+        {
+            var rb = bone.gameObject.AddComponent<Rigidbody>();
+            rb.mass = mass;
+            rb.isKinematic = true;
+            rb.linearDamping = 0.05f;
+            rb.angularDamping = 0.8f;
+            rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
+            col.enabled = false;
+
+            if (parentPart != null)
+            {
+                var joint = bone.gameObject.AddComponent<CharacterJoint>();
+                joint.connectedBody = parentPart;
+                joint.axis = twistAxis;
+                joint.swingAxis = twistAxis == Vector3.up ? Vector3.right : Vector3.up;
+                joint.lowTwistLimit = new SoftJointLimit { limit = lowTwist };
+                joint.highTwistLimit = new SoftJointLimit { limit = highTwist };
+                joint.swing1Limit = new SoftJointLimit { limit = swing };
+                joint.swing2Limit = new SoftJointLimit { limit = swing };
+                joint.enableProjection = true;
+            }
+            rig.Parts.Add(rb);
+        }
+
+        static Collider Box(Transform t, Vector3 center, Vector3 size)
+        {
+            var c = t.gameObject.AddComponent<BoxCollider>();
+            c.center = center;
+            c.size = size;
+            return c;
+        }
+
+        static Collider Capsule(Transform t, Vector3 center, float radius, float height)
+        {
+            var c = t.gameObject.AddComponent<CapsuleCollider>();
+            c.center = center;
+            c.radius = radius;
+            c.height = height;
+            c.direction = 1;
+            return c;
+        }
+
+        static Collider Sphere(Transform t, Vector3 center, float radius)
+        {
+            var c = t.gameObject.AddComponent<SphereCollider>();
+            c.center = center;
+            c.radius = radius;
+            return c;
         }
 
         // ---------- Props ----------

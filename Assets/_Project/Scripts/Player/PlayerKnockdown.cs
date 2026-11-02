@@ -4,34 +4,45 @@ using UnityEngine;
 namespace Freelancer
 {
     /// <summary>
-    /// Slapstick knockdown: the server decides a player got hit, the owner falls over for a moment
-    /// (body tips over, camera drops to the floor) and gets back up. Everyone sees the tip-over.
+    /// Slapstick knockdown: the server decides a player got hit, the owner goes ragdoll for a moment
+    /// and gets back up. Every machine runs the ragdoll locally; the owner's player root follows
+    /// their ragdoll's hips (and is synced), and the owner gets a third-person view of the flop.
     /// </summary>
-    [DefaultExecutionOrder(100)] // after PlayerMotor, so the camera roll isn't overwritten
+    [DefaultExecutionOrder(100)] // after PlayerMotor, so the camera override wins
     public class PlayerKnockdown : NetworkBehaviour
     {
-        [SerializeField] Transform body;
         [SerializeField] Transform cameraPivot;
-        [SerializeField] float downTime = 2.2f;
+        [SerializeField] float downTime = 2.5f;
         [SerializeField] float immunityAfter = 1f;
+        [SerializeField] float cameraDistance = 3.2f;
 
-        readonly NetworkVariable<bool> m_Down = new(false,
+        // Push is declared first so it arrives before (or with) the down flag.
+        readonly NetworkVariable<Vector3> m_Push = new(Vector3.zero,
             NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
-        readonly NetworkVariable<Vector3> m_FallDir = new(Vector3.forward,
+        readonly NetworkVariable<bool> m_Down = new(false,
             NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
 
         PlayerMotor m_Motor;
+        PlayerBody m_Body;
+        PlayerRagdoll m_Ragdoll;
         float m_UpAt;
         float m_ImmuneUntil;
-        float m_Tilt; // 0 = standing, 1 = flat
-        Vector3 m_CameraPivotRest;
         float m_ServerImmuneUntil;
+        bool m_Applied;
+
+        Vector3 m_CameraPivotRest;
+        float m_CamBlend;
+        Vector3 m_Focus;
+        readonly RaycastHit[] m_Hits = new RaycastHit[16];
 
         public bool IsDown => m_Down.Value;
+        public bool IsRagdolled => m_Ragdoll != null && m_Ragdoll.IsActive;
 
         void Awake()
         {
             m_Motor = GetComponent<PlayerMotor>();
+            m_Body = GetComponent<PlayerBody>();
+            m_Ragdoll = GetComponent<PlayerRagdoll>();
             if (cameraPivot != null) m_CameraPivotRest = cameraPivot.localPosition;
         }
 
@@ -53,40 +64,113 @@ namespace Freelancer
             if (direction.sqrMagnitude < 0.001f) direction = -transform.forward;
             direction.Normalize();
 
-            m_FallDir.Value = direction;
+            m_Push.Value = direction * Mathf.Clamp(strength, 3f, 7f);
             m_Down.Value = true;
             m_UpAt = Time.time + downTime;
-            m_Motor.AddImpulse(direction * Mathf.Clamp(strength, 2f, 8f) + Vector3.up * 2.5f);
         }
 
         void Update()
         {
             if (!IsSpawned) return;
 
-            if (IsOwner && m_Down.Value && Time.time >= m_UpAt)
+            if (IsOwner && m_Down.Value)
             {
-                m_Down.Value = false;
-                m_ImmuneUntil = Time.time + immunityAfter;
+                bool fellOut = m_Ragdoll.IsActive && m_Ragdoll.Hips.position.y < -20f;
+                if (Time.time >= m_UpAt || fellOut)
+                {
+                    m_Down.Value = false;
+                    m_ImmuneUntil = Time.time + immunityAfter;
+                    ApplyState();
+                    if (fellOut) m_Motor.Respawn();
+                }
+            }
+            ApplyState();
+        }
+
+        /// <summary>Start or stop the local ragdoll to match the synced flag (every machine).</summary>
+        void ApplyState()
+        {
+            if (m_Applied == m_Down.Value) return;
+            m_Applied = m_Down.Value;
+
+            if (m_Applied)
+            {
+                Vector3 inherit = m_Body != null ? m_Body.Velocity : Vector3.zero;
+                m_Ragdoll.Activate(inherit, m_Push.Value + Vector3.up * 2.5f, followRoot: !IsOwner);
+                m_Focus = m_Ragdoll.Hips.position;
+            }
+            else
+            {
+                if (IsOwner) FollowHips();
+                m_Ragdoll.Deactivate();
+            }
+        }
+
+        void LateUpdate()
+        {
+            if (!IsSpawned || !IsOwner || cameraPivot == null) return;
+
+            if (m_Ragdoll.IsActive) FollowHips();
+
+            m_CamBlend = Mathf.MoveTowards(m_CamBlend, m_Ragdoll.IsActive ? 1f : 0f, Time.deltaTime / 0.35f);
+            m_Motor.SetOwnBodyVisible(m_CamBlend > 0.4f);
+
+            if (m_CamBlend <= 0f)
+            {
+                cameraPivot.localPosition = m_CameraPivotRest;
+                return;
             }
 
-            // Visual tip-over, same on every machine.
-            float target = m_Down.Value ? 1f : 0f;
-            m_Tilt = Mathf.MoveTowards(m_Tilt, target, Time.deltaTime * (m_Down.Value ? 5f : 2.5f));
-            float eased = m_Tilt * m_Tilt * (3f - 2f * m_Tilt);
+            // Third-person orbit around your own ragdoll; the mouse still turns the view.
+            Vector3 restPos = transform.TransformPoint(m_CameraPivotRest);
+            Quaternion restRot = cameraPivot.rotation; // PlayerMotor set the pitch this frame
 
-            Vector3 localFall = transform.InverseTransformDirection(m_FallDir.Value);
-            Vector3 axis = Vector3.Cross(Vector3.up, localFall);
-            if (axis.sqrMagnitude < 0.001f) axis = Vector3.right;
-            Quaternion tip = Quaternion.AngleAxis(85f * eased, axis.normalized);
+            Vector3 focusTarget = m_Ragdoll.IsActive
+                ? m_Ragdoll.Hips.position + Vector3.up * 0.3f
+                : transform.position + Vector3.up * 1.2f;
+            m_Focus = Vector3.Lerp(m_Focus, focusTarget, 1f - Mathf.Exp(-15f * Time.deltaTime));
 
-            if (body != null) body.localRotation = tip;
-            if (IsOwner && cameraPivot != null)
+            Quaternion orbit = Quaternion.Euler(Mathf.Clamp(m_Motor.Pitch + 20f, -10f, 75f), transform.eulerAngles.y, 0f);
+            Vector3 desired = ClipCamera(m_Focus, m_Focus + orbit * Vector3.back * cameraDistance);
+
+            float e = m_CamBlend * m_CamBlend * (3f - 2f * m_CamBlend);
+            cameraPivot.position = Vector3.Lerp(restPos, desired, e);
+            cameraPivot.rotation = Quaternion.Slerp(restRot, Quaternion.LookRotation(m_Focus - desired), e);
+        }
+
+        /// <summary>Owner: keep the (invisible) player root standing on the ground under the ragdoll.</summary>
+        void FollowHips()
+        {
+            Vector3 hips = m_Ragdoll.Hips.position;
+            float groundY = hips.y - 0.3f;
+            float best = float.MaxValue;
+            int n = Physics.RaycastNonAlloc(hips + Vector3.up * 0.2f, Vector3.down, m_Hits, 3f, ~0,
+                QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
             {
-                // Drop the camera to the floor and roll it a bit.
-                Vector3 downPos = localFall * 1.2f + Vector3.up * 0.35f;
-                cameraPivot.localPosition = Vector3.Lerp(m_CameraPivotRest, downPos, eased);
-                cameraPivot.localRotation *= Quaternion.Euler(0, 0, 40f * eased);
+                if (m_Ragdoll.Owns(m_Hits[i].collider) || m_Hits[i].distance >= best) continue;
+                best = m_Hits[i].distance;
+                groundY = m_Hits[i].point.y;
             }
+            transform.position = new Vector3(hips.x, groundY, hips.z);
+        }
+
+        Vector3 ClipCamera(Vector3 from, Vector3 to)
+        {
+            Vector3 dir = to - from;
+            float dist = dir.magnitude;
+            if (dist < 0.01f) return to;
+            dir /= dist;
+            float best = dist;
+            int n = Physics.SphereCastNonAlloc(from, 0.2f, dir, m_Hits, dist, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
+            {
+                var h = m_Hits[i];
+                if (h.distance <= 0f || m_Ragdoll.Owns(h.collider)) continue;
+                if (h.collider.GetComponentInParent<PlayerMotor>() != null) continue;
+                best = Mathf.Min(best, h.distance);
+            }
+            return from + dir * best;
         }
     }
 }

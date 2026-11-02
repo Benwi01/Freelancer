@@ -30,7 +30,6 @@ namespace Freelancer
         [SerializeField] float mouseSensitivity = 0.1f;
         [SerializeField] Transform cameraPivot;
         [SerializeField] Camera playerCamera;
-        [SerializeField] Transform headVisual;
 
         [Header("Visuals")]
         [SerializeField] Renderer[] tintRenderers;
@@ -49,6 +48,11 @@ namespace Freelancer
         float m_LocalPitch;
         Vector3 m_SpawnPosition;
         Camera m_SceneCamera;
+        Renderer[] m_BodyRenderers;
+        bool m_OwnBodyVisible = true;
+
+        /// <summary>Look pitch in degrees (positive = down). Valid on every machine.</summary>
+        public float Pitch => IsOwner ? m_LocalPitch : m_Pitch.Value;
 
         public Vector3 EyePosition => transform.position + Vector3.up * EyeHeight;
 
@@ -69,6 +73,8 @@ namespace Freelancer
         {
             m_Controller = GetComponent<CharacterController>();
             m_Knockdown = GetComponent<PlayerKnockdown>();
+            // Cached now: the ragdoll later moves the body out of this hierarchy for a while.
+            m_BodyRenderers = GetComponentsInChildren<Renderer>(true);
         }
 
         public override void OnNetworkSpawn()
@@ -85,9 +91,8 @@ namespace Freelancer
             if (local)
             {
                 m_SpawnPosition = transform.position;
-                // You don't see your own body, but it still casts a shadow.
-                foreach (var r in GetComponentsInChildren<Renderer>())
-                    r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly;
+                // You don't see your own body (except when ragdolled), but it still casts a shadow.
+                SetOwnBodyVisible(false);
                 m_SceneCamera = Camera.main != playerCamera ? Camera.main : null;
                 if (m_SceneCamera != null) m_SceneCamera.gameObject.SetActive(false);
                 CursorLock.Refresh();
@@ -114,8 +119,6 @@ namespace Freelancer
             if (!IsSpawned) return;
 
             if (IsOwner) OwnerUpdate();
-            else if (headVisual != null)
-                headVisual.localRotation = Quaternion.Euler(m_Pitch.Value, 0, 0);
         }
 
         void OwnerUpdate()
@@ -138,6 +141,13 @@ namespace Freelancer
             }
             cameraPivot.localRotation = Quaternion.Euler(m_LocalPitch, 0, 0);
             if (Mathf.Abs(m_Pitch.Value - m_LocalPitch) > 0.5f) m_Pitch.Value = m_LocalPitch;
+
+            // While ragdolled, PlayerKnockdown moves us along with the body.
+            if (m_Knockdown != null && m_Knockdown.IsRagdolled)
+            {
+                m_Velocity = Vector3.zero;
+                return;
+            }
 
             // Move
             Vector2 input = Vector2.zero;
@@ -174,7 +184,21 @@ namespace Freelancer
             if (transform.position.y < -20f) Teleport(m_SpawnPosition);
         }
 
-        /// <summary>Owner only: shove the player (used by knockdowns).</summary>
+        /// <summary>Owner only: show or hide your own body on your screen (it always casts shadows).</summary>
+        public void SetOwnBodyVisible(bool visible)
+        {
+            if (visible == m_OwnBodyVisible) return;
+            m_OwnBodyVisible = visible;
+            var mode = visible ? UnityEngine.Rendering.ShadowCastingMode.On
+                               : UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly;
+            foreach (var r in m_BodyRenderers)
+                if (r != null) r.shadowCastingMode = mode;
+        }
+
+        /// <summary>Owner only: back to where you spawned.</summary>
+        public void Respawn() => Teleport(m_SpawnPosition);
+
+        /// <summary>Owner only: shove the player.</summary>
         public void AddImpulse(Vector3 velocity)
         {
             m_Velocity += velocity;

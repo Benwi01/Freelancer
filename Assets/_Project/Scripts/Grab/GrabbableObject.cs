@@ -97,6 +97,23 @@ namespace Freelancer
         }
 
         /// <summary>World-space point this holder's hand is reaching for.</summary>
+        /// <summary>World point a player is holding something at (any machine). Used to aim their arms.</summary>
+        public static bool TryFindGrip(ulong clientId, out Vector3 point)
+        {
+            foreach (var g in s_All)
+            {
+                if (g == null || !g.IsSpawned) continue;
+                foreach (var h in g.m_Holders)
+                {
+                    if (h.ClientId != clientId) continue;
+                    point = g.transform.TransformPoint(h.LocalAnchor);
+                    return true;
+                }
+            }
+            point = default;
+            return false;
+        }
+
         public static bool TryGetHandPoint(GrabHolder holder, out Vector3 hand)
         {
             if (PlayerMotor.ByClientId.TryGetValue(holder.ClientId, out var player) && player != null)
