@@ -32,7 +32,7 @@ namespace Freelancer
 
             var header = UiFactory.CreateText("Header", column, "YOUR FREELANCER", 24, TextAnchor.MiddleLeft);
             header.fontStyle = FontStyle.Bold;
-            header.color = new Color(1f, 0.62f, 0.3f);
+            header.color = MainMenuUI.Orange;
             UiFactory.SetPreferredHeight(header, 30);
 
             var previewImage = UiFactory.CreateRect("Preview", column).gameObject.AddComponent<RawImage>();
@@ -52,7 +52,7 @@ namespace Freelancer
             AddRow(column, "Mouth", PlayerLook.MouthNames, () => m_Look.Mouth, v => m_Look.Mouth = v);
             AddRow(column, "Outfit", PlayerLook.OutfitNames, () => m_Look.Outfit, v => m_Look.Outfit = v);
 
-            var random = UiFactory.Ghost(UiFactory.CreateButton("Randomize", column, "Surprise me", Randomize));
+            var random = UiFactory.Solid(UiFactory.CreateButton("Randomize", column, "Surprise me", Randomize), MainMenuUI.Navy, Color.white);
             random.GetComponentInChildren<Text>().fontSize = 26;
             UiFactory.SetPreferredHeight(random, 56);
 
@@ -76,14 +76,15 @@ namespace Freelancer
             }
 
             var caption = UiFactory.CreateText("Label", row, label.ToUpperInvariant(), 20, TextAnchor.MiddleLeft);
-            caption.color = new Color(1f, 1f, 1f, 0.45f);
+            caption.color = new Color(MainMenuUI.Navy.r, MainMenuUI.Navy.g, MainMenuUI.Navy.b, 0.55f);
             Width(caption, 110);
-            var prev = UiFactory.Ghost(UiFactory.CreateButton("Prev", row, "<", () => Step(-1)));
+            var prev = UiFactory.Solid(UiFactory.CreateButton("Prev", row, "<", () => Step(-1)), MainMenuUI.Stone, MainMenuUI.Navy);
             Width(prev, 52);
             var text = UiFactory.CreateText("Value", row, "", 28);
             text.fontStyle = FontStyle.Bold;
+            text.color = MainMenuUI.Navy;
             Width(text, 0, flexible: true);
-            var next = UiFactory.Ghost(UiFactory.CreateButton("Next", row, ">", () => Step(1)));
+            var next = UiFactory.Solid(UiFactory.CreateButton("Next", row, ">", () => Step(1)), MainMenuUI.Stone, MainMenuUI.Navy);
             Width(next, 52);
 
             m_Refreshers.Add(() => text.text = names[get() % names.Length]);

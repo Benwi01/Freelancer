@@ -169,6 +169,14 @@ namespace Freelancer
             return button;
         }
 
+        /// <summary>Restyle a button with its own background and label colour.</summary>
+        public static Button Solid(Button button, Color background, Color label)
+        {
+            button.GetComponent<Image>().color = background;
+            foreach (var t in button.GetComponentsInChildren<Text>()) t.color = label;
+            return button;
+        }
+
         /// <summary>Give an image rounded corners (radius in canvas pixels).</summary>
         public static Image Round(Image img, float radius = 16f)
         {
