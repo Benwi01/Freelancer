@@ -230,6 +230,10 @@ namespace Freelancer.EditorTools
                 so.FindProperty(field).objectReferenceValue = bone;
             so.ApplyModifiedPropertiesWithoutUndo();
 
+            so = new SerializedObject(root.AddComponent<PlayerEyes>());
+            SetObjects(so.FindProperty("pupilPivots"), rig.Pupils.ToArray());
+            so.ApplyModifiedPropertiesWithoutUndo();
+
             so = new SerializedObject(ragdoll);
             so.FindProperty("bodyRoot").objectReferenceValue = rig.Root;
             SetObjects(so.FindProperty("parts"), rig.Parts.ToArray());
@@ -244,6 +248,7 @@ namespace Freelancer.EditorTools
             public readonly List<(string field, Transform bone)> Bones = new();
             public readonly List<Rigidbody> Parts = new();
             public readonly List<Renderer> Tinted = new();
+            public readonly List<Transform> Pupils = new();
         }
 
         /// <summary>
@@ -292,10 +297,17 @@ namespace Freelancer.EditorTools
 
             var head = Bone("Head", "head", torso, new Vector3(0, 0.5f, 0));
             Vis(sphere, "Skull", head, new Vector3(0, 0.2f, 0), Vector3.one * 0.46f, skin);
-            SetupUtil.Visual(PrimitiveType.Cube, "EyeL", head, new Vector3(-0.09f, 0.22f, 0.205f),
-                new Vector3(0.06f, 0.1f, 0.04f), eyes);
-            SetupUtil.Visual(PrimitiveType.Cube, "EyeR", head, new Vector3(0.09f, 0.22f, 0.205f),
-                new Vector3(0.06f, 0.1f, 0.04f), eyes);
+            // Big googly eyes: white eyeballs bulging out of the face, pupils on pivots (see PlayerEyes).
+            var eyeWhite = SetupUtil.Mat("EyeWhite", new Color(0.97f, 0.97f, 0.95f), 0.55f);
+            foreach (var side in new[] { -1f, 1f })
+            {
+                string s = side < 0 ? "L" : "R";
+                var eyeCenter = new Vector3(0.1f * side, 0.165f, 0.16f);
+                Vis(sphere, "Eyeball" + s, head, eyeCenter, Vector3.one * 0.215f, eyeWhite);
+                var pivot = SetupUtil.Empty("PupilPivot" + s, head, eyeCenter).transform;
+                rig.Pupils.Add(pivot);
+                Vis(sphere, "Pupil", pivot, new Vector3(0, 0, 0.096f), new Vector3(0.062f, 0.062f, 0.03f), eyes);
+            }
             Vis(sphere, "Beanie", head, new Vector3(0, 0.29f, -0.01f), new Vector3(0.49f, 0.36f, 0.49f), shirt, tint: true);
             Vis(cylinder, "BeanieCuff", head, new Vector3(0, 0.27f, -0.01f), new Vector3(0.5f, 0.035f, 0.5f), shirt, tint: true);
             Vis(sphere, "Pompom", head, new Vector3(0, 0.49f, -0.01f), Vector3.one * 0.13f, pompom);

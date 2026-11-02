@@ -38,6 +38,10 @@ namespace Freelancer.EditorTools
                     block.SetColor("_BaseColor", new[] { new Color(0.95f, 0.35f, 0.3f), new Color(0.3f, 0.6f, 0.95f), new Color(0.4f, 0.85f, 0.4f) }[i]);
                     for (int t = 0; t < tint.arraySize; t++)
                         (tint.GetArrayElementAtIndex(t).objectReferenceValue as Renderer)?.SetPropertyBlock(block);
+                    // Pupils are posed at runtime; give them a derpy pose for the picture.
+                    foreach (var t in p.GetComponentsInChildren<Transform>())
+                        if (t.name.StartsWith("PupilPivot"))
+                            t.localRotation = Quaternion.Euler(Random.Range(-5f, 25f), Random.Range(-25f, 25f), 0);
                     var cam = p.GetComponentInChildren<Camera>(true);
                     if (cam != null) cam.gameObject.SetActive(false);
                 }
@@ -52,25 +56,33 @@ namespace Freelancer.EditorTools
                 camGo.transform.LookAt(origin + new Vector3(0, 0.95f, 0));
                 c.farClipPlane = 30f;
 
-                var rt = new RenderTexture(1200, 800, 24) { antiAliasing = 4 };
-                c.targetTexture = rt;
-                c.Render();
-
-                RenderTexture.active = rt;
-                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
-                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
-                tex.Apply();
-                RenderTexture.active = null;
-                File.WriteAllBytes(Path.Combine(Application.dataPath, "../Temp/player-preview.png"), tex.EncodeToPNG());
-                Object.DestroyImmediate(tex);
-                c.targetTexture = null;
-                rt.Release();
+                Shoot(c, "player-preview.png");
+                c.fieldOfView = 22f;
+                camGo.transform.position = origin + new Vector3(0, 1.65f, -1.6f);
+                camGo.transform.LookAt(origin + new Vector3(0, 1.58f, 0));
+                Shoot(c, "player-face.png");
                 Debug.Log("[Freelancer] Wrote Temp/player-preview.png");
             }
             finally
             {
                 EditorSceneManager.CloseScene(scene, true);
             }
+        }
+
+        static void Shoot(Camera c, string file)
+        {
+            var rt = new RenderTexture(1200, 800, 24) { antiAliasing = 4 };
+            c.targetTexture = rt;
+            c.Render();
+            RenderTexture.active = rt;
+            var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+            tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+            tex.Apply();
+            RenderTexture.active = null;
+            File.WriteAllBytes(Path.Combine(Application.dataPath, "../Temp/" + file), tex.EncodeToPNG());
+            Object.DestroyImmediate(tex);
+            c.targetTexture = null;
+            rt.Release();
         }
 
         static void SceneManager_Move(GameObject go, UnityEngine.SceneManagement.Scene scene) =>
