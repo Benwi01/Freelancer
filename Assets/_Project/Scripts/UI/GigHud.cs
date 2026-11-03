@@ -176,7 +176,7 @@ namespace Freelancer
             m_NewBestText.rectTransform.localRotation = Quaternion.Euler(0, 0, 8);
 
             m_Money = UiFactory.CreateText("Money", card.transform, "", 30);
-            UiFactory.Place(m_Money.rectTransform, new Vector2(0.5f, 0f), new Vector2(940, 50), new Vector2(0, 125));
+            UiFactory.Place(m_Money.rectTransform, new Vector2(0.5f, 0f), new Vector2(940, 80), new Vector2(0, 118));
 
             var row = UiFactory.CreateRect("Buttons", card.transform);
             UiFactory.Place(row, new Vector2(0.5f, 0f), new Vector2(880, 80), new Vector2(0, 30));
@@ -260,16 +260,32 @@ namespace Freelancer
                 m_Stars[i].color = i < gig.Stars ? Gold : Dim;
             m_Review.text = $"\"{GigReviews.Get(gig.Gig, gig.ReviewIndex)}\"\n<size=24>— {gig.Gig?.Reviewer}</size>";
 
-            int funds = CrewState.Current != null ? CrewState.Current.Money : 0;
-            m_Money.text = delivered
+            var crew = CrewState.Current;
+            int funds = crew != null ? crew.Money : 0;
+            string pay = delivered
                 ? $"Pay <b>${gig.Pay}</b>  +  Tip <b>${gig.Tip}</b>  =  <color=#7CFF7C><b>${gig.Pay + gig.Tip}</b></color>        Crew funds: <b>${funds}</b>"
                 : $"{gig.Objective.NoPayLine}        Crew funds: <b>${funds}</b>";
+            m_Money.text = crew != null ? pay + "\n<size=24>" + RentLine(crew) + "</size>" : pay;
             m_NewBestText.gameObject.SetActive(delivered && gig.NewBest);
 
             bool isHost = NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer;
             m_Retry.gameObject.SetActive(isHost);
             m_ToHub.gameObject.SetActive(isHost);
             m_Waiting.gameObject.SetActive(!isHost);
+        }
+
+        static string RentLine(CrewState crew)
+        {
+            if (crew.LastGigWasRentDay)
+                return crew.Notice switch
+                {
+                    RentNotice.Paid => $"<color=#7CFF7C>Rent day! Paid the landlord <b>${crew.NoticeAmount}</b>.</color>",
+                    RentNotice.Missed => $"<color=#FF6A5C>Rent day! Couldn't pay <b>${crew.NoticeAmount}</b>. The landlord's left a letter...</color>",
+                    RentNotice.Evicted => "<color=#FF6A5C><b>Rent day! Couldn't pay again. You've been evicted.</b></color>",
+                    _ => "",
+                };
+            string color = crew.CanAffordRent ? "#FFFFFFBB" : "#FF6A5C";
+            return $"<color={color}>Rent <b>${crew.RentDue}</b> due in {HubHud.Gigs(crew.GigsUntilRent)}</color>";
         }
 
         void SubscribeCake(CakeCondition cake)

@@ -17,6 +17,14 @@ namespace Freelancer
         public int gigsDelivered;
         public List<BestEntry> best = new();
 
+        // Rent (see RentRules). Older saves load these as 0, which reads as "week 1, nothing owed".
+        public int rentWeek;
+        public int gigsThisWeek;
+        public int rentOwed;      // unpaid rent carried over from a missed week
+        public int rentStrikes;   // 1 = already warned
+        public int evictions;
+        public bool rentIntroShown;
+
         [Serializable]
         public class BestEntry
         {

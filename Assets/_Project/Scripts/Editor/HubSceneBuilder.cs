@@ -44,6 +44,7 @@ namespace Freelancer.EditorTools
             new GameObject("SessionHud").AddComponent<SessionHud>();
             new GameObject("HubHud").AddComponent<HubHud>();
             new GameObject("GigComputerUI").AddComponent<GigComputerUI>();
+            new GameObject("LandlordLetterUI").AddComponent<LandlordLetterUI>();
 
             EditorSceneManager.SaveScene(scene, SetupUtil.HubScenePath);
             Debug.Log("[Freelancer] Built " + SetupUtil.HubScenePath);

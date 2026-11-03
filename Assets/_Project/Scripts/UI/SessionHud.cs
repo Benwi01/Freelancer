@@ -63,8 +63,9 @@ namespace Freelancer
                 m_Players.text = $"{count}/{SessionManager.MaxPlayers} freelancers";
             }
 
-            // Esc closes the computer first (it handles that itself) before opening this menu.
-            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame && !GigComputerUI.UsedEscapeThisFrame)
+            // Esc closes the computer / letter first (it handles that itself) before opening this menu.
+            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame && !GigComputerUI.UsedEscapeThisFrame &&
+                !LandlordLetterUI.UsedEscapeThisFrame)
                 SetMenu(!MenuOpen);
         }
 

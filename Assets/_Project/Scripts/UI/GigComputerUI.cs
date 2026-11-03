@@ -101,9 +101,9 @@ namespace Freelancer
             var logo = UiFactory.CreateText("Logo", bar.transform, "GigGrabber", 46, TextAnchor.MiddleLeft);
             logo.fontStyle = FontStyle.Bold;
             UiFactory.Place(logo.rectTransform, new Vector2(0f, 0.5f), new Vector2(420, 70), new Vector2(32, 0));
-            m_Wallet = UiFactory.CreateText("Wallet", bar.transform, "", 26, TextAnchor.MiddleLeft);
+            m_Wallet = UiFactory.CreateText("Wallet", bar.transform, "", 24, TextAnchor.MiddleLeft);
             m_Wallet.fontStyle = FontStyle.Bold;
-            UiFactory.Place(m_Wallet.rectTransform, new Vector2(0f, 0.5f), new Vector2(360, 50), new Vector2(330, 0));
+            UiFactory.Place(m_Wallet.rectTransform, new Vector2(0f, 0.5f), new Vector2(420, 76), new Vector2(330, 0));
             var tagline = UiFactory.CreateText("Tagline", bar.transform, "Be your own boss.*", 24, TextAnchor.MiddleRight);
             tagline.color = new Color(1f, 1f, 1f, 0.85f);
             UiFactory.Place(tagline.rectTransform, new Vector2(1f, 0.5f), new Vector2(500, 40), new Vector2(-110, 0));
@@ -247,7 +247,10 @@ namespace Freelancer
 
         void RefreshCrew()
         {
-            m_Wallet.text = CrewState.Current != null ? $"Crew funds: ${CrewState.Current.Money}" : "";
+            var crew = CrewState.Current;
+            m_Wallet.text = crew != null
+                ? $"Crew funds: ${crew.Money}\n<size=20>Rent ${crew.RentDue} due in {HubHud.Gigs(crew.GigsUntilRent)}</size>"
+                : "";
             var nm = NetworkManager.Singleton;
             bool isHost = nm != null && nm.IsServer;
             m_Accept.gameObject.SetActive(isHost);
