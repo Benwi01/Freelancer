@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Freelancer
 {
-    /// <summary>Scene marker: on the server, keeps a few clean glasses on the rack.</summary>
+    /// <summary>Scene marker: on the server, keeps a few clean glasses on the rack (one rack per drink station).</summary>
     public class GlassRack : MonoBehaviour
     {
         [SerializeField] NetworkObject glassPrefab;

@@ -58,7 +58,8 @@ namespace Freelancer.EditorTools
         static GameObject BuildGlass()
         {
             var root = new GameObject("Bar_Glass");
-            var glassMat = SetupUtil.Transparent("Glass", new Color(0.85f, 0.95f, 1f, 0.35f));
+            // Own name: "Glass" is the van's window material, and sharing it made these opaque.
+            var glassMat = SetupUtil.Transparent("DrinkGlass", new Color(0.85f, 0.95f, 1f, 0.35f));
             Mesh cyl = LowPolyMeshes.Cylinder;
 
             var wall = LowPolyMeshes.Visual(cyl, "Glass", root.transform, new Vector3(0, 0.085f, 0), new Vector3(0.13f, 0.085f, 0.13f), glassMat);
@@ -291,8 +292,10 @@ namespace Freelancer.EditorTools
 
             var parts = BuildNpc(root.transform, SetupUtil.Mat("GuestOutfit", Color.white), SetupUtil.Mat("GuestSkin", Color.white), false);
 
-            // Speech bubble: order sign + patience bar. Turned toward the camera at runtime.
-            var bubble = SetupUtil.Empty("Bubble", root.transform, new Vector3(0, 2.55f, 0)).transform;
+            // Speech bubble: order sign + patience bar, just above the head (small, so the room
+            // stays visible over a row of guests). Turned toward the camera at runtime.
+            var bubble = SetupUtil.Empty("Bubble", root.transform, new Vector3(0, 2.28f, 0)).transform;
+            bubble.localScale = Vector3.one * 0.55f;
             var text = new GameObject("Text").AddComponent<TMPro.TextMeshPro>();
             text.transform.SetParent(bubble, false);
             text.text = "BEER";
