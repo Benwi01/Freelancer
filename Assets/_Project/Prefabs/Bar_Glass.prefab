@@ -413,6 +413,8 @@ MonoBehaviour:
   throwSpeed: 5
   maxThrowImpulse: 70
   heldAngularDamping: 8
+  keepUprightWhenHeld: 1
+  uprightStrength: 18
 --- !u!114 &5554832942576784797
 MonoBehaviour:
   m_ObjectHideFlags: 0

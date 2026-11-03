@@ -83,6 +83,7 @@ namespace Freelancer.EditorTools
             var grab = new SerializedObject(root.GetComponent<GrabbableObject>());
             grab.FindProperty("throwSpeed").floatValue = 5f;
             grab.FindProperty("heldAngularDamping").floatValue = 8f;
+            grab.FindProperty("keepUprightWhenHeld").boolValue = true;
             grab.ApplyModifiedPropertiesWithoutUndo();
 
             var drink = root.AddComponent<DrinkGlass>();

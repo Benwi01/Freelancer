@@ -92,12 +92,12 @@ namespace Freelancer.EditorTools
         {
             var glassPrefab = AssetDatabase.LoadAssetAtPath<NetworkObject>(PrefabBuilder.GlassPath);
 
-            // A glass under the beer tap, and turn the tap on.
+            // Drop a tilted glass a little off the beer tap's tray: it should snap onto the tray. Then turn the tap on.
             foreach (var tap in DrinkTap.All)
             {
                 if (!tap.UsesKeg) continue;
-                var spout = tap.transform.TransformPoint(new Vector3(0, 0.03f, 0.15f));
-                var g = Object.Instantiate(glassPrefab, spout, Quaternion.identity);
+                var near = tap.transform.TransformPoint(new Vector3(0.12f, 0.12f, 0.3f));
+                var g = Object.Instantiate(glassPrefab, near, Quaternion.Euler(20f, 0f, 10f));
                 g.Spawn(destroyWithScene: true);
                 typeof(DrinkTap).GetMethod("ToggleRpc", BindingFlags.Instance | BindingFlags.NonPublic)
                     ?.Invoke(tap, new object[] { });

@@ -30,6 +30,9 @@ namespace Freelancer
 
         [Header("While held")]
         [SerializeField] float heldAngularDamping = 3f;
+        [Tooltip("While held, turn it upright (glasses: carrying a drink shouldn't spill it).")]
+        [SerializeField] bool keepUprightWhenHeld;
+        [SerializeField] float uprightStrength = 18f;
 
         readonly NetworkList<GrabHolder> m_Holders = new();
         readonly Dictionary<ulong, float> m_StretchedSince = new();
@@ -130,6 +133,13 @@ namespace Freelancer
             if (!IsServer || !IsSpawned) return;
 
             m_Body.angularDamping = IsHeld ? heldAngularDamping : m_RestAngularDamping;
+            if (keepUprightWhenHeld && IsHeld)
+            {
+                // Swing back to upright; keep only the spin around the vertical axis.
+                Vector3 tilt = Vector3.Cross(transform.up, Vector3.up);
+                Vector3 spin = Vector3.Project(m_Body.angularVelocity, Vector3.up);
+                m_Body.angularVelocity = tilt * uprightStrength + spin;
+            }
 
             for (int i = m_Holders.Count - 1; i >= 0; i--)
             {

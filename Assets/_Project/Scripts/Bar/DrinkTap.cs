@@ -5,9 +5,10 @@ using UnityEngine;
 namespace Freelancer
 {
     /// <summary>
-    /// A tap (or a box of wine with a spout). Press E to start pouring, E again to stop: whatever
-    /// glass is under the spout fills up. Keep pouring and it overflows. A beer tap runs off a keg;
-    /// when that runs dry, drag a spare keg onto the keg spot (a child of this object) to refill it.
+    /// A tap (or a box of wine with a spout). Let go of a glass near the drip tray and it clicks
+    /// upright into place under the spout. Press E to start pouring and E again to stop; pour too
+    /// long and it overflows (sticky glass, smaller tip). A beer tap runs off a keg; when that runs dry, drag a spare keg onto the keg spot (a child
+    /// of this object) to refill it.
     /// </summary>
     public class DrinkTap : NetworkBehaviour, IInteractable
     {
@@ -18,7 +19,12 @@ namespace Freelancer
         [SerializeField] Transform spout;
         [SerializeField] GameObject stream;
         [SerializeField] Transform handle;
-        [SerializeField] float pourPerSecond = 0.42f;
+        [SerializeField] float pourPerSecond = 0.45f;
+
+        [Header("Snapping")]
+        [Tooltip("Let go of a glass within this distance of the tray and it snaps onto it.")]
+        [SerializeField] float snapRadius = 0.3f;
+        [SerializeField] float snapHeight = 0.45f;
 
         [Header("Keg")]
         [SerializeField] bool usesKeg;
@@ -31,6 +37,7 @@ namespace Freelancer
 
         readonly NetworkVariable<bool> m_Pouring = new(false);
         readonly NetworkVariable<float> m_Level = new(1f);
+        readonly NetworkVariable<float> m_GlassFill = new(-1f); // fill of the glass on the tray (-1 = none), for the prompt
 
         public Drink Drink => drink;
         public bool UsesKeg => usesKeg;
@@ -38,16 +45,18 @@ namespace Freelancer
         public bool IsEmpty => usesKeg && m_Level.Value <= 0f;
         public bool IsPouring => m_Pouring.Value;
 
-        public string Prompt => IsEmpty ? "Keg's empty! Spare kegs are in the basement"
-            : m_Pouring.Value ? "Stop pouring" : $"Pour {drinkName}";
+        /// <summary>Where a glass stands to be filled: on the drip tray, under the spout.</summary>
+        Vector3 TrayPoint => new(spout.position.x, transform.position.y + 0.002f, spout.position.z);
 
-        public override void OnNetworkSpawn()
+        public string Prompt
         {
-            All.Add(this);
-            if (IsServer) m_Level.Value = usesKeg ? startLevel : 1f;
+            get
+            {
+                if (IsEmpty) return "Keg's empty! Spare kegs are in the basement";
+                string glass = m_GlassFill.Value < 0f ? "  (no glass!)" : $"  ({Mathf.RoundToInt(m_GlassFill.Value * 100)}%)";
+                return (m_Pouring.Value ? "Stop pouring" : $"Pour {drinkName}") + glass;
+            }
         }
-
-        public override void OnNetworkDespawn() => All.Remove(this);
 
         public void Interact(PlayerMotor player) => ToggleRpc();
 
@@ -58,43 +67,78 @@ namespace Freelancer
             m_Pouring.Value = !m_Pouring.Value && !IsEmpty;
         }
 
+        public override void OnNetworkSpawn()
+        {
+            All.Add(this);
+            if (IsServer) m_Level.Value = usesKeg ? startLevel : 1f;
+        }
+
+        public override void OnNetworkDespawn() => All.Remove(this);
+
         void Update()
         {
-            bool flowing = m_Pouring.Value && !IsEmpty;
+            bool flowing = m_Pouring.Value;
             if (stream != null && stream.activeSelf != flowing) stream.SetActive(flowing);
             if (handle != null)
                 handle.localRotation = Quaternion.Slerp(handle.localRotation,
-                    Quaternion.Euler(m_Pouring.Value ? 35f : 0f, 0f, 0f), Time.deltaTime * 12f);
+                    Quaternion.Euler(flowing ? 35f : 0f, 0f, 0f), Time.deltaTime * 12f);
+        }
 
+        void FixedUpdate()
+        {
             if (!IsServer || !IsSpawned) return;
             if (usesKeg) TryRefillFromKeg();
-            if (!m_Pouring.Value) return;
 
+            var glass = DockGlass();
+            float shown = glass != null ? Mathf.Round(glass.Fill * 100f) / 100f : -1f;
+            if (!Mathf.Approximately(m_GlassFill.Value, shown)) m_GlassFill.Value = shown;
+
+            if (!m_Pouring.Value) return;
             if (IsEmpty || (GigDirector.Current != null && GigDirector.Current.IsOver))
             {
                 m_Pouring.Value = false;
                 return;
             }
 
-            if (usesKeg) m_Level.Value = Mathf.Max(0f, m_Level.Value - kegPerSecond * Time.deltaTime);
-            var glass = GlassUnderSpout();
-            if (glass != null) glass.AddDrink(drink, pourPerSecond * Time.deltaTime);
+            // Pours whether or not there's a glass under it (no glass = beer on the floor).
+            if (usesKeg) m_Level.Value = Mathf.Max(0f, m_Level.Value - kegPerSecond * Time.fixedDeltaTime);
+            if (glass != null) glass.AddDrink(drink, pourPerSecond * Time.fixedDeltaTime);
         }
 
-        DrinkGlass GlassUnderSpout()
+        /// <summary>
+        /// Server: the glass standing on the tray, if any. A glass let go of nearby gets snapped
+        /// upright onto the tray first.
+        /// </summary>
+        DrinkGlass DockGlass()
         {
-            Vector3 s = spout.position;
+            Vector3 tray = TrayPoint;
+            DrinkGlass docked = null, nearest = null;
+            float nearestDist = float.MaxValue;
             foreach (var glass in DrinkGlass.All)
             {
-                if (glass == null || !glass.IsSpawned) continue;
+                if (glass == null || !glass.IsSpawned || glass.IsHeld) continue;
                 Vector3 g = glass.transform.position;
-                Vector2 flat = new Vector2(g.x - s.x, g.z - s.z);
-                if (flat.magnitude > 0.11f) continue;
-                if (g.y > s.y || g.y < s.y - 0.6f) continue;
-                if (Vector3.Dot(glass.transform.up, Vector3.up) < 0.7f) continue;
-                return glass;
+                float flat = new Vector2(g.x - tray.x, g.z - tray.z).magnitude;
+                if (g.y < tray.y - 0.1f || g.y > tray.y + snapHeight || flat > snapRadius) continue;
+                if (flat < 0.04f && Vector3.Dot(glass.transform.up, Vector3.up) > 0.95f) docked = glass;
+                else if (flat < nearestDist && glass.Body.linearVelocity.magnitude < 1.5f) // not drinks being slid past
+                {
+                    nearest = glass;
+                    nearestDist = flat;
+                }
             }
-            return null;
+            if (docked != null) return docked;
+            if (nearest == null) return null;
+
+            // Click it into place: upright on the tray, keeping which way it faces.
+            var body = nearest.Body;
+            var rotation = Quaternion.Euler(0f, nearest.transform.eulerAngles.y, 0f);
+            body.linearVelocity = Vector3.zero;
+            body.angularVelocity = Vector3.zero;
+            body.position = tray;
+            body.rotation = rotation;
+            nearest.transform.SetPositionAndRotation(tray, rotation);
+            return nearest;
         }
 
         void TryRefillFromKeg()

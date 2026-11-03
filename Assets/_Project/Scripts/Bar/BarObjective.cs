@@ -148,7 +148,7 @@ namespace Freelancer
             var tap = BeerTap();
             if (tap != null && tap.IsEmpty)
                 return "The beer's run out! Drag a spare keg up from the basement to the KEG spot under the tap.";
-            return "Fill a glass at a tap (E), then put it in front of the guest who ordered it.";
+            return "Set a glass on a tap, pour with E (stop at the top!), then put it in front of the guest.";
         }
 
         public override string Callout

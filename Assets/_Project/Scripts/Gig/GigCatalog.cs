@@ -45,7 +45,7 @@ namespace Freelancer
                     "\"Guests order at the bar. Fill a glass, put it in front of them. Don't overfill, " +
                     "don't break anything, and if the beer runs out the spare kegs are in the basement. " +
                     "Uncle Gary drinks a lot. Do not let Uncle Gary wait.\"",
-                Tips = "E at a tap: pour / stop  ·  RMB throws gently: slide drinks down the bar for bonus tips.",
+                Tips = "Set a glass on a tap's tray, E to pour / stop  ·  RMB slides a drink down the bar for bonus tips.",
                 Reviewer = BarReviews.Reviewer,
                 Reviews = BarReviews.All,
             },

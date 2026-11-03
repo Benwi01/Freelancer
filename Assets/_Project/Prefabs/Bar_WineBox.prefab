@@ -292,7 +292,9 @@ MonoBehaviour:
   spout: {fileID: 2507158114438782590}
   stream: {fileID: 9193178188370587688}
   handle: {fileID: 6964582771446849600}
-  pourPerSecond: 0.42
+  pourPerSecond: 0.45
+  snapRadius: 0.3
+  snapHeight: 0.45
   usesKeg: 0
   startLevel: 0.5
   kegPerSecond: 0.04

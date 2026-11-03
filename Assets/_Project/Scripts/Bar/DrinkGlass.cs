@@ -74,8 +74,8 @@ namespace Freelancer
 
             if (m_Grab.IsHeld) ReleasedAt = transform.position;
 
-            // Tipped over: it pours out.
-            if (m_Fill.Value > 0f && Vector3.Dot(transform.up, Vector3.up) < 0.45f)
+            // Knocked over (not in someone's hand): it pours out.
+            if (m_Fill.Value > 0f && !m_Grab.IsHeld && Vector3.Dot(transform.up, Vector3.up) < 0.45f)
             {
                 m_Fill.Value = Mathf.Max(0f, m_Fill.Value - spillPerSecond * Time.fixedDeltaTime);
                 if (m_Fill.Value <= 0.02f)
