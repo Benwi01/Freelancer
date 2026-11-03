@@ -65,8 +65,7 @@ namespace Freelancer
 
             // Esc closes the computer / letter first (it handles that itself) before opening this menu.
             if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame && !GigComputerUI.UsedEscapeThisFrame &&
-                !LandlordLetterUI.UsedEscapeThisFrame &&
-                !RouletteUI.UsedEscapeThisFrame)
+                !LandlordLetterUI.UsedEscapeThisFrame)
                 SetMenu(!MenuOpen);
         }
 

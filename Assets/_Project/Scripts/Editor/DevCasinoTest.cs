@@ -9,7 +9,7 @@ namespace Freelancer.EditorTools
 {
     /// <summary>
     /// Plays one round of roulette at Lucky Lenny's: hosts locally, walks the player up to the table,
-    /// bets $50 on red and $25 on 17, and screenshots the panel, the spin and the payout to
+    /// bets $50 on red, $25 on 17 and $10 on odd, spins from the wheel, and screenshots the table, the spin and the payout to
     /// Temp/casino-*.png. Puts the real crew save back afterwards.
     /// </summary>
     [InitializeOnLoad]
@@ -71,7 +71,7 @@ namespace Freelancer.EditorTools
                     break;
                 case 5 when T > 8 && table != null:
                     s_MoneyBefore = CrewState.Current.Money;
-                    RouletteUI.Instance.Open(table);
+                    RouletteTable.LocalChip = 50;
                     table.ServerPlaceBet(NetworkManager.ServerClientId, RouletteBetKind.Red, 0, 50);
                     table.ServerPlaceBet(NetworkManager.ServerClientId, RouletteBetKind.Straight, 17, 25);
                     table.ServerPlaceBet(NetworkManager.ServerClientId, RouletteBetKind.Odd, 0, 10);
@@ -79,6 +79,10 @@ namespace Freelancer.EditorTools
                     break;
                 case 6 when T > 9.5:
                     Shot("betting");
+                    Next(61);
+                    break;
+                case 61 when T > 10.5:
+                    Debug.Log($"[Freelancer] ROULETTE TEST spin from the wheel: {table.ServerSpin(NetworkManager.ServerClientId)} by={table.SpunBy}");
                     Next(7);
                     break;
                 case 7 when table != null && table.Phase == RoulettePhase.Spinning && table.SecondsLeft < 3.2f:
@@ -97,7 +101,6 @@ namespace Freelancer.EditorTools
                     break;
                 case 9 when table != null && table.Phase == RoulettePhase.Betting:
                     Debug.Log($"[Freelancer] ROULETTE TEST next round open, bets on table={table.Bets.Count}");
-                    RouletteUI.Instance.Close();
                     Next(0);
                     EditorApplication.isPlaying = false;
                     if (File.Exists(Backup))
