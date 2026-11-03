@@ -33,6 +33,7 @@ namespace Freelancer.EditorTools
             Register(BuildGigDirector());
             Register(BuildCrewState());
             BuildBarPrefabs();
+            BuildCasinoPrefabs();
 
             EditorUtility.SetDirty(list);
             AssetDatabase.SaveAssets();

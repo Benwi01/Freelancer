@@ -181,6 +181,25 @@ namespace Freelancer
             m_Best.Add(new GigRecord { GigId = gigId, Stars = (byte)stars });
         }
 
+        /// <summary>Server: pay for something out of crew funds (casino chips...). False if the crew can't afford it.</summary>
+        public bool TrySpend(int amount)
+        {
+            if (!IsServer || amount <= 0 || m_Save.money < amount) return false;
+            m_Save.money -= amount;
+            m_Money.Value = m_Save.money;
+            m_Save.Save();
+            return true;
+        }
+
+        /// <summary>Server: money coming in that isn't gig pay (casino winnings...).</summary>
+        public void Receive(int amount)
+        {
+            if (!IsServer || amount <= 0) return;
+            m_Save.money += amount;
+            m_Money.Value = m_Save.money;
+            m_Save.Save();
+        }
+
         // ---------- Dev helpers (editor test scripts) ----------
 
         /// <summary>Server, dev only: set the crew's money.</summary>

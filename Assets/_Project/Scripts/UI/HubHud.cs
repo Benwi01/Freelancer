@@ -27,7 +27,8 @@ namespace Freelancer
         {
             var nm = NetworkManager.Singleton;
             bool isHost = nm != null && nm.IsServer;
-            bool computerOpen = GigComputerUI.Instance != null && GigComputerUI.Instance.IsOpen;
+            bool computerOpen = (GigComputerUI.Instance != null && GigComputerUI.Instance.IsOpen) ||
+                                (RouletteUI.Instance != null && RouletteUI.Instance.IsOpen);
             m_Hint.gameObject.SetActive(!computerOpen);
             var crew = CrewState.Current;
             m_Funds.text = crew != null ? FundsText(crew) : "";

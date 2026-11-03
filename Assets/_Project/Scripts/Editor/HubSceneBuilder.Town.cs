@@ -12,7 +12,7 @@ namespace Freelancer.EditorTools
     ///   north frontage z = -4.2 (facing south): fillers x -32..-6.2, apartment block -6.2..6.2,
     ///     THREADZ clothing 6.2..16, BJÖRKMÖBEL 16..32
     ///   north sidewalk z -4.2..-8.2, road z -8.2..-15.8, south sidewalk z -15.8..-19.8
-    ///   south frontage z = -19.8 (facing north): Lucky Lenny's casino x -32..-11, park -11..5,
+    ///   south frontage z = -19.8 (facing north): Lucky Lenny's casino x -32..-11 (walk-in, roulette), park -11..5,
     ///     Pemberton Properties 5..15, filler 15..32
     ///   road closed at both ends (x ±29), invisible walls at x ±32.5
     /// </summary>
@@ -184,15 +184,34 @@ namespace Freelancer.EditorTools
 
         // ---------- South side ----------
 
+        /// <summary>
+        /// Lucky Lenny's: gold sign outside, and inside a carpeted hall (x -31.8..-11.2,
+        /// z -29.6..-20, ceiling 4.4) with the roulette table, Lenny, slots and the cashier.
+        /// </summary>
         static void BuildCasino()
         {
             var g = Group("Casino");
-            float o = 1f, front = SouthFront;
+            float front = SouthFront;
             var face = Quaternion.Euler(0f, 180f, 0f);
-            const float x0 = -EndX, x1 = -11f, h = 8f;
-            Body(g, x0, x1, front, o, 10f, h, k_Casino);
+            const float x0 = -EndX, x1 = -11f, h = 8f, back = -29.8f, ceiling = 4.4f;
+            const float doorW = -22.7f, doorE = -20.3f, doorTop = 2.6f;
+            var outside = M("Body_Casino", k_Casino);
+            var inside = M("CasinoWall", new Color(0.42f, 0.1f, 0.16f));
 
-            // Dark tinted windows and a gold trim band.
+            // Shell: front wall with the doorway, side and back walls, a thick roof over the hall.
+            float fz = front - 0.1f;
+            SetupUtil.Block("FrontW", g, new Vector3((x0 + doorW) / 2f, h / 2f, fz), new Vector3(doorW - x0, h, 0.2f), outside);
+            SetupUtil.Block("FrontE", g, new Vector3((doorE + x1) / 2f, h / 2f, fz), new Vector3(x1 - doorE, h, 0.2f), outside);
+            SetupUtil.Block("FrontLintel", g, new Vector3((doorW + doorE) / 2f, (doorTop + h) / 2f, fz), new Vector3(doorE - doorW, h - doorTop, 0.2f), outside);
+            SetupUtil.Block("Back", g, new Vector3((x0 + x1) / 2f, h / 2f, back + 0.1f), new Vector3(x1 - x0, h, 0.2f), outside);
+            SetupUtil.Block("West", g, new Vector3(x0 + 0.1f, h / 2f, (front + back) / 2f), new Vector3(0.2f, h, front - back), outside);
+            SetupUtil.Block("East", g, new Vector3(x1 - 0.1f, h / 2f, (front + back) / 2f), new Vector3(0.2f, h, front - back), outside);
+            SetupUtil.Block("Roof", g, new Vector3((x0 + x1) / 2f, (ceiling + h) / 2f, (front + back) / 2f), new Vector3(x1 - x0, h - ceiling, front - back), outside);
+            Box("Cornice", g, new Vector3((x0 + x1) / 2f, h + 0.12f, (front + back) / 2f), new Vector3(x1 - x0 + 0.1f, 0.25f, front - back + 0.3f), Stone);
+            Box("Plinth", g, new Vector3((x0 + doorW) / 2f, 0.22f, front + 0.03f), new Vector3(doorW - x0, 0.45f, 0.06f), Stone);
+            Box("PlinthE", g, new Vector3((doorE + x1) / 2f, 0.22f, front + 0.03f), new Vector3(x1 - doorE, 0.45f, 0.06f), Stone);
+
+            // Outside: dark tinted windows, a gold band and the big bulb-ringed sign.
             var tint = M("CasinoGlass", new Color(0.12f, 0.1f, 0.18f), 0.9f);
             var gold = M("PartyGold", Palette.PartyGold);
             for (float x = x0 + 2.5f; x < x1 - 1f; x += 3f)
@@ -202,8 +221,6 @@ namespace Freelancer.EditorTools
                 Box("WindowTrim", g, new Vector3(x, 2.85f, front + 0.05f), new Vector3(2.2f, 0.08f, 0.06f), gold);
             }
             Box("GoldBand", g, new Vector3((x0 + x1) / 2f, 3.4f, front + 0.05f), new Vector3(x1 - x0, 0.15f, 0.08f), gold);
-
-            // The big sign: name on a board ringed with bulbs.
             var sign = new Vector3(-21.5f, 5.2f, front + 0.08f);
             Box("SignBoard", g, sign, new Vector3(9f, 2.2f, 0.1f), M("CasinoSign", new Color(0.55f, 0.1f, 0.2f)));
             Label("LUCKY LENNY'S", g, sign + new Vector3(0f, 0.3f, 0.07f), face, 0.6f, Palette.PartyGold);
@@ -216,18 +233,138 @@ namespace Freelancer.EditorTools
                 foreach (float x in new[] { -4.45f, 4.45f })
                     Vis(LowPolyMeshes.Sphere, "Bulb", g, sign + new Vector3(x, y, 0.08f), Vector3.one * 0.13f, bulb);
 
-            // Entrance: gold doors (shut for now), red carpet and a velvet rope.
-            Box("DoorFrame", g, new Vector3(-21.5f, 1.3f, front + 0.04f), new Vector3(2.8f, 2.6f, 0.06f), gold);
-            Box("Doors", g, new Vector3(-21.5f, 1.2f, front + 0.07f), new Vector3(2.4f, 2.4f, 0.04f), tint);
-            Box("Carpet", g, new Vector3(-21.5f, 0.006f, front + 2f), new Vector3(2f, 0.012f, 4f), M("Runner", new Color(0.78f, 0.25f, 0.32f)));
+            // Entrance: gold frame round an open doorway, red carpet all the way in, velvet rope.
+            Box("DoorFrameL", g, new Vector3(doorW - 0.08f, doorTop / 2f, front + 0.05f), new Vector3(0.16f, doorTop, 0.08f), gold);
+            Box("DoorFrameR", g, new Vector3(doorE + 0.08f, doorTop / 2f, front + 0.05f), new Vector3(0.16f, doorTop, 0.08f), gold);
+            Box("DoorFrameTop", g, new Vector3(-21.5f, doorTop + 0.08f, front + 0.05f), new Vector3(doorE - doorW + 0.32f, 0.16f, 0.08f), gold);
+            Label("OPEN 24/7  ·  NO REFUNDS", g, new Vector3(-21.5f, doorTop + 0.35f, front + 0.06f), face, 0.09f, Palette.PartyGold);
+            var carpet = M("Runner", new Color(0.78f, 0.25f, 0.32f));
+            Box("Carpet", g, new Vector3(-21.5f, 0.006f, front + 2f), new Vector3(2f, 0.012f, 4f), carpet);
             foreach (float x in new[] { -23f, -20f })
             {
                 Solid(PrimitiveType.Cylinder, "RopePost", g, new Vector3(x, 0.5f, front + 2.2f), new Vector3(0.12f, 0.5f, 0.12f), gold);
                 Vis(LowPolyMeshes.Sphere, "PostTop", g, new Vector3(x, 1.05f, front + 2.2f), Vector3.one * 0.16f, gold);
             }
-            Vis(LowPolyMeshes.Cylinder, "Rope", g, new Vector3(-21.5f, 0.85f, front + 2.2f), new Vector3(0.05f, 1.5f, 0.05f), M("CasinoSign", new Color(0.55f, 0.1f, 0.2f)),
-                Quaternion.Euler(0f, 0f, 90f));
-            OpeningSoon(g, new Vector3(-21.5f, 1.4f, front + 0.12f), face, "Feeling lucky? Soon.");
+
+            // ---- Inside ----
+            float ix0 = x0 + 0.2f, ix1 = x1 - 0.2f, iz0 = back + 0.2f, iz1 = front - 0.2f;
+            float icx = (ix0 + ix1) / 2f, icz = (iz0 + iz1) / 2f;
+            SetupUtil.Block("Floor", g, new Vector3(icx, -0.075f, icz), new Vector3(ix1 - ix0, 0.15f, iz1 - iz0), M("CasinoCarpet", new Color(0.32f, 0.08f, 0.12f)));
+            var diamond = M("CasinoCarpetGold", new Color(0.62f, 0.45f, 0.18f));
+            for (float x = ix0 + 1f; x < ix1; x += 2f)
+            for (float z = iz0 + 1f; z < iz1; z += 2f)
+                Box("CarpetDiamond", g, new Vector3(x, 0.003f, z), new Vector3(0.35f, 0.004f, 0.35f), diamond, Quaternion.Euler(0f, 45f, 0f));
+            Box("CarpetRunIn", g, new Vector3(-21.5f, 0.006f, iz1 - 1.6f), new Vector3(2f, 0.012f, 3.2f), carpet);
+            Box("Ceiling", g, new Vector3(icx, ceiling - 0.01f, icz), new Vector3(ix1 - ix0, 0.02f, iz1 - iz0), M("CasinoCeiling", new Color(0.16f, 0.08f, 0.12f)));
+            // Wall finish: deep red above dark wainscot, with a gold rail.
+            var wainscot = M("CasinoWainscot", new Color(0.2f, 0.1f, 0.08f));
+            void WallFace(string n, Vector3 c, Vector3 size, Vector3 inward)
+            {
+                bool alongX = size.x > size.z;
+                Box(n, g, new Vector3(c.x, ceiling / 2f, c.z), new Vector3(size.x, ceiling, size.z), inside);
+                Box(n + "Wainscot", g, new Vector3(c.x, 0.5f, c.z) + inward * 0.015f, new Vector3(size.x, 1f, size.z), wainscot);
+                Box(n + "Rail", g, new Vector3(c.x, 1.02f, c.z) + inward * 0.03f, alongX ? new Vector3(size.x, 0.05f, 0.04f) : new Vector3(0.04f, 0.05f, size.z), gold);
+            }
+            WallFace("WallBack", new Vector3(icx, 0f, iz0 + 0.01f), new Vector3(ix1 - ix0, 0f, 0.02f), Vector3.forward);
+            WallFace("WallWest", new Vector3(ix0 + 0.01f, 0f, icz), new Vector3(0.02f, 0f, iz1 - iz0), Vector3.right);
+            WallFace("WallEast", new Vector3(ix1 - 0.01f, 0f, icz), new Vector3(0.02f, 0f, iz1 - iz0), Vector3.left);
+            WallFace("WallFrontW", new Vector3((ix0 + doorW) / 2f, 0f, iz1 - 0.01f), new Vector3(doorW - ix0, 0f, 0.02f), Vector3.back);
+            WallFace("WallFrontE", new Vector3((doorE + ix1) / 2f, 0f, iz1 - 0.01f), new Vector3(ix1 - doorE, 0f, 0.02f), Vector3.back);
+            Box("WallFrontOverDoor", g, new Vector3(-21.5f, (doorTop + ceiling) / 2f, iz1 - 0.01f), new Vector3(doorE - doorW, ceiling - doorTop, 0.02f), inside);
+
+            // The roulette table in the middle, Lenny behind it.
+            Spawner(g, PrefabBuilder.RoulettePath, new Vector3(-21.5f, 0f, -25.4f), 0f, "RouletteSpawner");
+            LennyNpc(g, new Vector3(-21.4f, 0f, -26.75f));
+
+            // Neon on the back wall.
+            var neon = SetupUtil.Emissive("Neon", Palette.Neon, 3f);
+            Label("THE HOUSE ALWAYS WINS", g, new Vector3(-21.5f, 3.55f, iz0 + 0.03f), face, 0.24f, Palette.Neon);
+            Label("(mostly)", g, new Vector3(-25.7f, 3.2f, iz0 + 0.03f), face, 0.12f, Palette.PartyGold);
+            Box("NeonLine", g, new Vector3(-21.5f, 3.2f, iz0 + 0.03f), new Vector3(5.6f, 0.04f, 0.02f), neon);
+
+            // Slot machines along the west wall (not hooked up yet).
+            for (int i = 0; i < 5; i++)
+                SlotMachine(g, new Vector3(ix0 + 0.45f, 0f, -21.8f - i * 1.5f), i);
+            Label("SLOTS", g, new Vector3(ix0 + 0.03f, 3.3f, -24.8f), Quaternion.Euler(0f, -90f, 0f), 0.24f, Palette.PartyGold);
+            Label("coming soon (Lenny's nephew is fixing them)", g, new Vector3(ix0 + 0.03f, 2.95f, -24.8f), Quaternion.Euler(0f, -90f, 0f), 0.07f, Palette.PartyWhite);
+
+            // Cashier's cage in the back corner.
+            float cx0 = -15.6f, cx1 = ix1, cz = -28.2f;
+            SetupUtil.Block("CashierCounter", g, new Vector3((cx0 + cx1) / 2f, 0.55f, cz), new Vector3(cx1 - cx0, 1.1f, 0.6f), wainscot);
+            Box("CashierTop", g, new Vector3((cx0 + cx1) / 2f, 1.12f, cz), new Vector3(cx1 - cx0, 0.04f, 0.66f), gold);
+            for (float x = cx0 + 0.15f; x < cx1; x += 0.22f)
+                Box("Bar", g, new Vector3(x, 1.85f, cz + 0.2f), new Vector3(0.025f, 1.4f, 0.025f), gold);
+            Box("CageTop", g, new Vector3((cx0 + cx1) / 2f, 2.55f, cz + 0.2f), new Vector3(cx1 - cx0, 0.06f, 0.06f), gold);
+            Box("CashierSign", g, new Vector3((cx0 + cx1) / 2f, 2.95f, cz + 0.2f), new Vector3(2.2f, 0.5f, 0.04f), M("CasinoSign", new Color(0.55f, 0.1f, 0.2f)));
+            Label("CASHIER", g, new Vector3((cx0 + cx1) / 2f, 2.98f, cz + 0.23f), face, 0.2f, Palette.PartyGold);
+            Label("No refunds. No IOUs. No crying.", g, new Vector3((cx0 + cx1) / 2f, 1.25f, cz + 0.34f), face, 0.05f, Palette.PartyWhite);
+            Npc(g, new Vector3(-13.4f, 0f, -29f), 0f, new Color(0.15f, 0.15f, 0.2f), 1, -1, PartyGuest.Style.Chat, 0.5f);
+
+            // A couple of regulars: one welded to a slot machine, two at a cocktail table.
+            Npc(g, new Vector3(ix0 + 1.25f, 0f, -24.8f), -90f, new Color(0.55f, 0.5f, 0.35f), 2, -1, PartyGuest.Style.Lean, 0.6f);
+            Solid(PrimitiveType.Cylinder, "CocktailTable", g, new Vector3(-14.5f, 0.55f, -22.6f), new Vector3(0.7f, 0.55f, 0.7f), wainscot);
+            Vis(LowPolyMeshes.Cylinder, "CocktailTop", g, new Vector3(-14.5f, 1.11f, -22.6f), new Vector3(0.8f, 0.02f, 0.8f), gold);
+            Npc(g, new Vector3(-15.2f, 0f, -22.3f), 110f, new Color(0.85f, 0.3f, 0.45f), 0, 0, PartyGuest.Style.Chat, 1.2f);
+            Npc(g, new Vector3(-13.8f, 0f, -22.9f), -70f, new Color(0.3f, 0.45f, 0.75f), 1, -1, PartyGuest.Style.Chat, 0.9f);
+
+            // Chandeliers and warm lights.
+            foreach (float x in new[] { -27f, -21.5f, -16f })
+            {
+                var c = new Vector3(x, ceiling - 0.6f, -24.8f);
+                Box("ChandelierRod", g, c + new Vector3(0f, 0.3f, 0f), new Vector3(0.03f, 0.6f, 0.03f), gold);
+                Vis(LowPolyMeshes.Cylinder, "ChandelierRing", g, c, new Vector3(0.9f, 0.03f, 0.9f), gold);
+                for (int i = 0; i < 8; i++)
+                {
+                    var d = Quaternion.Euler(0f, i * 45f, 0f) * Vector3.forward * 0.42f;
+                    Vis(LowPolyMeshes.Sphere, "Candle", g, c + d + new Vector3(0f, 0.06f, 0f), Vector3.one * 0.09f, bulb);
+                }
+                Lamp(g, c - new Vector3(0f, 0.3f, 0f), 9f, 1.5f);
+            }
+            Lamp(g, new Vector3(-21.5f, 2.6f, -25.4f), 4f, 1.2f); // over the table
+        }
+
+        /// <summary>Lenny himself: gold waistcoat, top hat, never stops talking.</summary>
+        static void LennyNpc(Transform g, Vector3 pos)
+        {
+            Npc(g, pos, 0f, new Color(0.85f, 0.65f, 0.2f), 1, 0, PartyGuest.Style.Chat, 1.3f);
+            Label("LENNY", g, pos + new Vector3(0f, 2.15f, 0f), Quaternion.Euler(0f, 180f, 0f), 0.08f, Palette.PartyGold, new Color(0.55f, 0.1f, 0.2f));
+        }
+
+        static void SlotMachine(Transform g, Vector3 foot, int i)
+        {
+            var body = M("SlotBody", new Color(0.75f, 0.15f, 0.2f));
+            var chrome = M("Chrome", new Color(0.78f, 0.8f, 0.84f), 0.75f);
+            SetupUtil.Block("SlotBody", g, foot + new Vector3(0f, 0.8f, 0f), new Vector3(0.7f, 1.6f, 0.8f), body);
+            Box("SlotTop", g, foot + new Vector3(0f, 1.72f, 0f), new Vector3(0.72f, 0.24f, 0.82f), M("PartyGold", Palette.PartyGold));
+            Box("SlotScreen", g, foot + new Vector3(0.36f, 1.2f, 0f), new Vector3(0.02f, 0.36f, 0.6f), SetupUtil.Emissive("SlotScreen", new Color(1f, 0.95f, 0.8f), 1.2f));
+            for (int r = 0; r < 3; r++)
+                Box("Reel", g, foot + new Vector3(0.372f, 1.2f, -0.18f + r * 0.18f), new Vector3(0.01f, 0.22f, 0.12f),
+                    M("Reel" + (i + r) % 3, (i + r) % 3 == 0 ? Palette.Hydrant : (i + r) % 3 == 1 ? Palette.PartyGold : Palette.Leaf));
+            Box("SlotTray", g, foot + new Vector3(0.38f, 0.5f, 0f), new Vector3(0.1f, 0.08f, 0.5f), chrome);
+            Box("Lever", g, foot + new Vector3(0.1f, 1.4f, -0.45f), new Vector3(0.04f, 0.5f, 0.04f), chrome);
+            Vis(LowPolyMeshes.Sphere, "LeverKnob", g, foot + new Vector3(0.1f, 1.68f, -0.45f), Vector3.one * 0.1f, M("Hydrant", Palette.Hydrant));
+            if (i % 2 == 1)
+                Label("OUT OF ORDER", g, foot + new Vector3(0.375f, 0.95f, 0f), Quaternion.Euler(0f, -90f, 0f), 0.05f, Palette.Hydrant, Palette.PartyWhite);
+        }
+
+        /// <summary>A decorative person (feet at <paramref name="pos"/>), optionally animated.</summary>
+        static void Npc(Transform g, Vector3 pos, float yaw, Color outfit, int skin, int hat, PartyGuest.Style style, float speed)
+        {
+            var skins = new[] { new Color(0.98f, 0.84f, 0.7f), new Color(0.75f, 0.55f, 0.4f), new Color(0.5f, 0.35f, 0.25f) };
+            var go = SetupUtil.Empty("Person", g, pos);
+            go.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
+            var parts = PrefabBuilder.BuildNpc(go.transform, M("DecoGuest_" + ColorUtility.ToHtmlStringRGB(outfit), outfit),
+                M("DancerSkin" + skin % 3, skins[skin % 3]), armsForward: false);
+            if (hat >= 0 && hat < parts.Hats.Count) parts.Hats[hat].SetActive(true);
+            var col = go.AddComponent<CapsuleCollider>();
+            col.center = new Vector3(0f, 0.95f, 0f);
+            col.height = 1.9f;
+            col.radius = 0.3f;
+            var pg = new SerializedObject(go.AddComponent<PartyGuest>());
+            pg.FindProperty("body").objectReferenceValue = parts.Body;
+            pg.FindProperty("style").enumValueIndex = (int)style;
+            pg.FindProperty("speed").floatValue = speed;
+            pg.ApplyModifiedPropertiesWithoutUndo();
         }
 
         static void BuildPark()
