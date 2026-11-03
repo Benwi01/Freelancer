@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Unity.Netcode;
+using Unity.Netcode.Components;
 using UnityEditor;
 using UnityEngine;
 
@@ -41,30 +42,101 @@ namespace Freelancer.EditorTools
             SceneKit.Box("Felt", t, new Vector3(0.45f, top + 0.003f, 0f), new Vector3(2f, 0.006f, 1.3f), felt);
             SceneKit.Box("Pedestal", t, new Vector3(0.1f, 0.06f, 0f), new Vector3(3.1f, 0.12f, 1.5f), SetupUtil.Mat("RouletteWoodDark", new Color(0.25f, 0.14f, 0.09f)));
 
-            // Wheel: wooden bowl, a gold track, and the spinning part with 37 pockets.
+            // ---- Wheel (all sizes in metres from the wheel centre, which sits on the table top) ----
+            // Static bowl: wooden base, a wall round the outside, a sloped ball track with gold
+            // deflectors. The spinning head: a numbered ring sloping into 37 pockets split by gold
+            // frets, and a stepped cone with a cross-shaped turret. Every surface the ball can touch
+            // has a collider; the ball itself is a small physics sphere the server sends round.
             var wc = new Vector3(-0.95f, top, 0f);
-            LowPolyMeshes.Visual(cyl, "Bowl", t, wc + new Vector3(0f, 0.03f, 0f), new Vector3(1.1f, 0.03f, 1.1f), wood);
-            LowPolyMeshes.Visual(cyl, "Track", t, wc + new Vector3(0f, 0.062f, 0f), new Vector3(0.96f, 0.004f, 0.96f), SetupUtil.Mat("Track", new Color(0.55f, 0.4f, 0.25f), 0.7f));
-            var wheel = SetupUtil.Empty("Wheel", t, wc + new Vector3(0f, 0.07f, 0f)).transform;
-            LowPolyMeshes.Visual(cyl, "Disc", wheel, Vector3.zero, new Vector3(0.72f, 0.01f, 0.72f), black);
+            // The ball glides round a slick wall and track, slowed mostly by drag, then gets caught by
+            // grippy pockets and frets; deflectors knock it about on the way down.
+            var wheelPm = PhysicsMat("PM_RouletteWheel", 0.35f, 0.6f);
+            var wallPm = PhysicsMat("PM_RouletteWall", 0f, 0f);
+            var trackPm = PhysicsMat("PM_RouletteTrack", 0.1f, 0.04f);
+            var deflectPm = PhysicsMat("PM_RouletteDeflector", 0.5f, 0.2f);
+            var darkWood = SetupUtil.Mat("RouletteWoodDark", new Color(0.25f, 0.14f, 0.09f));
+            var polished = SetupUtil.Mat("RouletteWheelWood", new Color(0.45f, 0.24f, 0.12f), 0.75f);
+            var trackMat = SetupUtil.Mat("Track", new Color(0.55f, 0.4f, 0.25f), 0.7f);
+            var chromeMat = SetupUtil.Mat("Chrome", new Color(0.78f, 0.8f, 0.84f), 0.75f);
+            var bowl = SetupUtil.Empty("Bowl", t, wc).transform;
+            LowPolyMeshes.Visual(cyl, "Base", bowl, new Vector3(0f, 0.02f, 0f), new Vector3(1.22f, 0.02f, 1.22f), darkWood);
+            // Smooth revolved surfaces (boxes leave seams that kick a fast ball off the track):
+            // the sloped track (r 0.39 -> 0.5075), then the wall and its rounded top.
+            Revolved(bowl, "Track", "RouletteTrack", new[] { new Vector2(0.39f, 0.098f), new Vector2(0.5075f, 0.134f) }, trackMat, trackPm);
+            Revolved(bowl, "Wall", "RouletteWall", new[]
+            {
+                new Vector2(0.5075f, 0.134f), new Vector2(0.5075f, 0.218f), new Vector2(0.58f, 0.218f), new Vector2(0.6f, 0.04f),
+            }, darkWood, wallPm);
+            Revolved(bowl, "Trim", "RouletteTrim", new[] { new Vector2(0.535f, 0.2185f), new Vector2(0.575f, 0.2185f) }, gold, null);
+            const float slope = 17.03f; // atan(0.036 / 0.1175)
+            for (int i = 0; i < 8; i++)
+            {
+                float a = i * 45f + 22.5f;
+                var rot = Quaternion.Euler(0f, a, 0f);
+                var d = Diamond(bowl, "Deflector", rot * new Vector3(0f, 0.115f, 0.42f), rot * Quaternion.Euler(-slope, 45f, 0f),
+                    new Vector3(0.024f, 0.016f, 0.024f), gold, deflectPm);
+                d.name = "Deflector" + i;
+            }
+
+            var wheel = SetupUtil.Empty("Wheel", t, wc).transform;
+            var wheelBody = wheel.gameObject.AddComponent<Rigidbody>();
+            wheelBody.isKinematic = true;
+            wheelBody.interpolation = RigidbodyInterpolation.Interpolate;
             int n = RouletteRules.WheelOrder.Length;
+            float step = 360f / n;
             for (int i = 0; i < n; i++)
             {
                 int number = RouletteRules.WheelOrder[i];
-                float a = i * 360f / n;
-                var dir = Quaternion.Euler(0f, a, 0f);
+                var dir = Quaternion.Euler(0f, i * step, 0f);
+                var between = Quaternion.Euler(0f, i * step + step / 2f, 0f);
                 var mat = number == 0 ? green : RouletteRules.IsRed(number) ? red : black;
-                SceneKit.Box("Pocket" + number, wheel, dir * new Vector3(0f, 0.012f, 0.3f), new Vector3(0.046f, 0.006f, 0.11f), mat, dir);
-                SceneKit.Box("Fret", wheel, Quaternion.Euler(0f, a + 360f / n / 2f, 0f) * new Vector3(0f, 0.016f, 0.3f), new Vector3(0.003f, 0.008f, 0.1f), gold,
-                    Quaternion.Euler(0f, a + 360f / n / 2f, 0f));
-                SceneKit.Label(number.ToString(), wheel, wheel.TransformPoint(dir * new Vector3(0f, 0.017f, 0.388f)), dir * Quaternion.Euler(90f, 180f, 0f), 0.022f, Palette.PartyWhite);
+                // Pocket floor, the numbered ring sloping down into it, and the fret to its right.
+                Solid(wheel, "Pocket" + number, dir * new Vector3(0f, 0.053f, 0.3f), dir, new Vector3(0.054f, 0.01f, 0.112f), mat, wheelPm);
+                Solid(wheel, "Ring" + number, dir * new Vector3(0f, 0.088f, 0.3725f), dir * Quaternion.Euler(-10f, 0f, 0f),
+                    new Vector3(0.066f, 0.01f, 0.04f), mat, wheelPm);
+                Solid(wheel, "Fret" + i, between * new Vector3(0f, 0.072f, 0.302f), between, new Vector3(0.004f, 0.028f, 0.116f), gold, wheelPm);
+                SceneKit.Label(number.ToString(), wheel, wheel.TransformPoint(dir * new Vector3(0f, 0.0945f, 0.3725f)),
+                    dir * Quaternion.Euler(80f, 180f, 0f), 0.018f, Palette.PartyWhite);
             }
-            LowPolyMeshes.Visual(cyl, "Hub", wheel, new Vector3(0f, 0.03f, 0f), new Vector3(0.22f, 0.03f, 0.22f), SetupUtil.Mat("Mirror", new Color(0.85f, 0.88f, 0.95f), 0.95f));
-            LowPolyMeshes.Visual(cyl, "Spindle", wheel, new Vector3(0f, 0.08f, 0f), new Vector3(0.04f, 0.05f, 0.04f), gold);
+            // Stepped cone and the turret on top.
+            var cone = LowPolyMeshes.Visual(cyl, "Cone", wheel, new Vector3(0f, 0.078f, 0f), new Vector3(0.49f, 0.02f, 0.49f), polished);
+            Collide(cone, wheelPm, convexMesh: cyl);
+            var cone2 = LowPolyMeshes.Visual(cyl, "Cone2", wheel, new Vector3(0f, 0.11f, 0f), new Vector3(0.34f, 0.014f, 0.34f), polished);
+            Collide(cone2, wheelPm, convexMesh: cyl);
+            LowPolyMeshes.Visual(cyl, "Dome", wheel, new Vector3(0f, 0.132f, 0f), new Vector3(0.15f, 0.012f, 0.15f), chromeMat);
+            LowPolyMeshes.Visual(cyl, "Spindle", wheel, new Vector3(0f, 0.17f, 0f), new Vector3(0.03f, 0.04f, 0.03f), gold);
             for (int i = 0; i < 4; i++)
-                SceneKit.Box("Spoke", wheel, new Vector3(0f, 0.09f, 0f), new Vector3(0.2f, 0.008f, 0.008f), gold, Quaternion.Euler(0f, i * 45f, 0f));
-            var ball = LowPolyMeshes.Visual(LowPolyMeshes.Sphere, "Ball", t, wc + new Vector3(0f, 0.1f, 0.3f), Vector3.one * 0.035f,
+            {
+                var arm = Quaternion.Euler(0f, i * 90f, 0f);
+                SceneKit.Box("TurretArm", wheel, arm * new Vector3(0f, 0.2f, 0.05f), new Vector3(0.012f, 0.012f, 0.1f), gold, arm);
+                LowPolyMeshes.Visual(LowPolyMeshes.Sphere, "TurretKnob", wheel, arm * new Vector3(0f, 0.2f, 0.1f), Vector3.one * 0.026f, gold);
+            }
+            LowPolyMeshes.Visual(LowPolyMeshes.Sphere, "TurretTop", wheel, new Vector3(0f, 0.22f, 0f), Vector3.one * 0.03f, gold);
+
+            // The ball: a child of the table, not the wheel (a moving parent would drag it around).
+            var ball = LowPolyMeshes.Visual(LowPolyMeshes.Sphere, "Ball", t, wc + new Vector3(0f, 0.0755f, 0.3f), Vector3.one * 0.035f,
                 SetupUtil.Mat("Ivory", new Color(0.98f, 0.97f, 0.93f), 0.8f)).transform;
+            var ballCol = ball.gameObject.AddComponent<SphereCollider>();
+            ballCol.radius = 0.5f;
+            ballCol.contactOffset = 0.002f;
+            ballCol.sharedMaterial = PhysicsMat("PM_RouletteBall", 0.4f, 0f);
+            var ballBody = ball.gameObject.AddComponent<Rigidbody>();
+            ballBody.mass = 0.02f;
+            ballBody.isKinematic = true;
+            ballBody.interpolation = RigidbodyInterpolation.Interpolate;
+            ballBody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            ballBody.solverIterations = 30;
+            ballBody.solverVelocityIterations = 10;
+            ballBody.linearDamping = 0.07f;
+            ballBody.angularDamping = 0.5f;
+            ballBody.maxAngularVelocity = 400f;
+            var ballNt = ball.gameObject.AddComponent<NetworkTransform>();
+            ballNt.AuthorityMode = NetworkTransform.AuthorityModes.Server;
+            ballNt.InLocalSpace = true;
+            ballNt.SyncRotAngleX = ballNt.SyncRotAngleY = ballNt.SyncRotAngleZ = false;
+            ballNt.SyncScaleX = ballNt.SyncScaleY = ballNt.SyncScaleZ = false;
+            ballNt.Interpolate = true;
+            ball.gameObject.AddComponent<NetworkRigidbody>();
 
             // Betting layout: zero, 12 x 3 numbers, then the six even-money boxes.
             var cells = new Transform[37];
@@ -165,7 +237,14 @@ namespace Freelancer.EditorTools
 
             var so = new SerializedObject(table);
             so.FindProperty("wheel").objectReferenceValue = wheel;
+            so.FindProperty("wheelBody").objectReferenceValue = wheelBody;
             so.FindProperty("ball").objectReferenceValue = ball;
+            so.FindProperty("ballBody").objectReferenceValue = ballBody;
+            so.FindProperty("pocketRadius").floatValue = 0.3f;
+            so.FindProperty("restHeight").floatValue = 0.0755f;
+            so.FindProperty("launchRadius").floatValue = 0.49f;   // ball centre against the wall
+            so.FindProperty("launchHeight").floatValue = 0.1465f; // on the track (0.129 at r 0.49) + ball radius
+            so.FindProperty("settleRadius").floatValue = 0.36f;
             so.FindProperty("board").objectReferenceValue = board;
             so.FindProperty("chipRoot").objectReferenceValue = chipRoot;
             SetObjects(so.FindProperty("outsideSpots"), outside);
@@ -177,6 +256,119 @@ namespace Freelancer.EditorTools
 
             foreach (var child in root.GetComponentsInChildren<Transform>(true)) child.gameObject.isStatic = false;
             return Save(root, RoulettePath);
+        }
+
+        /// <summary>A ring of boxes round the wheel centre (y from <paramref name="y0"/> to <paramref name="y1"/>), tilted by <paramref name="tilt"/> degrees.</summary>
+        static void Ring(Transform parent, string name, int count, float radius, float radialSize, float y0, float y1, float tilt, Material mat, PhysicsMaterial pm)
+        {
+            float width = 2f * Mathf.PI * radius / count * 1.12f;
+            for (int i = 0; i < count; i++)
+            {
+                var yaw = Quaternion.Euler(0f, i * 360f / count, 0f);
+                var size = tilt == 0f ? new Vector3(width, y1 - y0, radialSize) : new Vector3(width, 0.01f, radialSize / Mathf.Cos(tilt * Mathf.Deg2Rad));
+                var go = SceneKit.Box(name + i, parent, yaw * new Vector3(0f, (y0 + y1) / 2f, radius), size, mat, yaw * Quaternion.Euler(tilt, 0f, 0f));
+                if (pm != null) Collide(go, pm);
+            }
+        }
+
+        /// <summary>
+        /// A smooth surface of revolution round the wheel centre from a (radius, height) profile, as both
+        /// the visual and (with a physics material) a collider. Faces point to the ball's side.
+        /// </summary>
+        static GameObject Revolved(Transform parent, string name, string meshName, Vector2[] profile, Material mat, PhysicsMaterial pm)
+        {
+            const int segments = 256;
+            string path = LowPolyMeshes.Dir + "/" + meshName + ".asset";
+            SetupUtil.EnsureFolder(LowPolyMeshes.Dir);
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            if (mesh == null)
+            {
+                mesh = new Mesh { name = meshName };
+                AssetDatabase.CreateAsset(mesh, path);
+            }
+            mesh.Clear();
+            // One ring of vertices per profile segment end, duplicated per segment so corners stay crisp.
+            var verts = new List<Vector3>();
+            var tris = new List<int>();
+            for (int k = 0; k < profile.Length - 1; k++)
+            {
+                int start = verts.Count;
+                for (int i = 0; i <= segments; i++)
+                {
+                    float a = i * Mathf.PI * 2f / segments;
+                    foreach (var pt in new[] { profile[k], profile[k + 1] })
+                        verts.Add(new Vector3(Mathf.Sin(a) * pt.x, pt.y, Mathf.Cos(a) * pt.x));
+                }
+                for (int i = 0; i < segments; i++)
+                {
+                    int a0 = start + i * 2, b0 = a0 + 1, a1 = a0 + 2, b1 = a0 + 3;
+                    tris.AddRange(new[] { a0, b0, a1, b0, b1, a1 });
+                }
+            }
+            mesh.SetVertices(verts);
+            mesh.SetTriangles(tris, 0);
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            EditorUtility.SetDirty(mesh);
+
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshRenderer>().sharedMaterial = mat;
+            if (pm != null)
+            {
+                var mc = go.AddComponent<MeshCollider>();
+                mc.sharedMesh = mesh;
+                mc.sharedMaterial = pm;
+                mc.contactOffset = 0.002f;
+            }
+            return go;
+        }
+
+        /// <summary>A visual box that the ball bounces off.</summary>
+        static GameObject Solid(Transform parent, string name, Vector3 pos, Quaternion rot, Vector3 size, Material mat, PhysicsMaterial pm)
+        {
+            var go = SceneKit.Box(name, parent, pos, size, mat, rot);
+            Collide(go, pm);
+            return go;
+        }
+
+        static GameObject Diamond(Transform parent, string name, Vector3 pos, Quaternion rot, Vector3 size, Material mat, PhysicsMaterial pm) =>
+            Solid(parent, name, pos, rot, size, mat, pm);
+
+        /// <summary>Give a visual piece a tight collider (box, or a convex mesh for round parts).</summary>
+        static void Collide(GameObject go, PhysicsMaterial pm, Mesh convexMesh = null)
+        {
+            Collider c;
+            if (convexMesh != null)
+            {
+                var mc = go.AddComponent<MeshCollider>();
+                mc.sharedMesh = convexMesh;
+                mc.convex = true;
+                c = mc;
+            }
+            else c = go.AddComponent<BoxCollider>();
+            c.sharedMaterial = pm;
+            c.contactOffset = 0.002f;
+        }
+
+        static PhysicsMaterial PhysicsMat(string name, float bounce, float friction)
+        {
+            SetupUtil.EnsureFolder(PhysicsDir);
+            string path = PhysicsDir + "/" + name + ".asset";
+            var pm = AssetDatabase.LoadAssetAtPath<PhysicsMaterial>(path);
+            if (pm == null)
+            {
+                pm = new PhysicsMaterial(name);
+                AssetDatabase.CreateAsset(pm, path);
+            }
+            pm.bounciness = bounce;
+            pm.dynamicFriction = friction;
+            pm.staticFriction = friction;
+            pm.bounceCombine = PhysicsMaterialCombine.Average;
+            pm.frictionCombine = PhysicsMaterialCombine.Average;
+            EditorUtility.SetDirty(pm);
+            return pm;
         }
 
         /// <summary>A betting spot: a thin trigger over the felt that you look at and press E on.</summary>

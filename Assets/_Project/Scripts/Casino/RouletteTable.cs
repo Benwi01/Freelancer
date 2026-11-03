@@ -15,10 +15,15 @@ namespace Freelancer
 
     /// <summary>
     /// Lucky Lenny's roulette table, played entirely on the table: E on a chip stack picks your
-    /// chip, E on a spot of the felt bets it, E on the wheel spins (or it spins by itself when the
-    /// countdown that the first bet starts runs out). Server-authoritative: bets come out of crew
-    /// funds, the server picks the number, winnings go back into crew funds. Everyone animates the
-    /// wheel and ball from the synced spin start time and result.
+    /// chip, E on a spot of the felt bets it (R takes it back), E on the wheel spins (or it spins by
+    /// itself when the countdown that the first bet starts runs out).
+    ///
+    /// The ball is real physics, simulated on the server: launched round the rim against the
+    /// spinning wheel, it slows, rolls down the track, rattles off deflectors and frets, and the
+    /// pocket it comes to rest in is the result. Everyone computes the wheel's angle from the same
+    /// synced clock; the ball's flight is synced, and once it lands every machine sits it in that
+    /// pocket, so all screens agree.
+    /// Bets come out of crew funds and winnings go back into them.
     /// </summary>
     public class RouletteTable : NetworkBehaviour
     {
@@ -30,17 +35,41 @@ namespace Freelancer
         [Header("Rules")]
         [Tooltip("Spins by itself this long after the first bet, if nobody spins it.")]
         [SerializeField] float bettingSeconds = 25f;
-        [SerializeField] float spinSeconds = 6f;
         [SerializeField] float payoutSeconds = 5f;
         [SerializeField] int maxBet = 250;
 
-        [Header("Visuals")]
+        [Header("Wheel")]
         [SerializeField] Transform wheel;
-        [SerializeField] Transform ball;
-        [Tooltip("Ball track radius, and where it settles in a pocket.")]
-        [SerializeField] float rimRadius = 0.42f;
-        [SerializeField] float pocketRadius = 0.3f;
+        [SerializeField] Rigidbody wheelBody;
+        [Tooltip("Idle turning speed, degrees per second.")]
         [SerializeField] float wheelSpeed = 30f;
+        [Tooltip("Extra speed a spin gives the wheel, fading out over spinBoostTime.")]
+        [SerializeField] float spinBoost = 200f;
+        [SerializeField] float spinBoostTime = 3f;
+
+        [Header("Ball (server)")]
+        [SerializeField] Transform ball;
+        [SerializeField] Rigidbody ballBody;
+        [Tooltip("The ball circles the rim here (radius, and height above the wheel centre) until it's too slow to stay up.")]
+        [SerializeField] float launchRadius = 0.49f;
+        [SerializeField] float launchHeight = 0.146f;
+        [SerializeField] Vector2 launchSpeed = new(2.7f, 3.4f);
+        [Tooltip("Slowing on the rim: drag (per second, times speed) plus a constant rolling loss (m/s²).")]
+        [SerializeField] float rimDrag = 0.12f;
+        [SerializeField] float rimFriction = 0.22f;
+        [Tooltip("Below this speed the rim can't hold the ball and physics takes over.")]
+        [SerializeField] float fallSpeed = 1.25f;
+        [Tooltip("Resting spot in a pocket (wheel space).")]
+        [SerializeField] float pocketRadius = 0.3f;
+        [SerializeField] float restHeight = 0.0175f;
+        [Tooltip("Ball counts as in a pocket inside this radius, moving with the wheel slower than settleSpeed for settleTime.")]
+        [SerializeField] float settleRadius = 0.36f;
+        [SerializeField] float settleSpeed = 0.07f;
+        [SerializeField] float settleTime = 0.5f;
+        [Tooltip("Give up waiting and read the nearest pocket after this long.")]
+        [SerializeField] float maxSpinSeconds = 16f;
+
+        [Header("Table")]
         [SerializeField] TMP_Text board;
         [SerializeField] Transform chipRoot;
         [Tooltip("Chip spots for Red, Black, Odd, Even, 1-18, 19-36 (in RouletteBetKind order).")]
@@ -57,7 +86,8 @@ namespace Freelancer
         readonly NetworkVariable<double> m_PhaseEndsAt = new(0);   // 0 = waiting for the first bet
         readonly NetworkVariable<int> m_Result = new(-1);
         readonly NetworkVariable<double> m_SpinStartedAt = new(0);
-        readonly NetworkVariable<int> m_SpunBy = new(-1);          // client id + 1 who pulled the wheel (0 = it spun itself)
+        readonly NetworkVariable<float> m_WheelOffset = new(0f);   // angle carried over from earlier spins
+        readonly NetworkVariable<int> m_SpunBy = new(-1);          // client id + 1 who spun it (0 = it spun itself)
         readonly NetworkVariable<int> m_LastStaked = new(0);
         readonly NetworkVariable<int> m_LastReturned = new(0);
         NetworkList<RouletteBet> m_Bets;
@@ -70,6 +100,14 @@ namespace Freelancer
         string m_ShownBoard;
         RouletteSpot m_Hover;
         readonly Dictionary<RouletteChipStack, Vector3> m_StackHome = new();
+        Renderer m_BallRenderer;
+        float m_SettledFor;
+        bool m_OnRim;
+        float m_RimAngle, m_RimSpeed;
+        float m_NextTrace;
+
+        /// <summary>Dev: log the ball's flight while it spins.</summary>
+        public static bool Trace;
 
         public RoulettePhase Phase => m_Phase.Value;
         public int Result => m_Result.Value;
@@ -88,6 +126,7 @@ namespace Freelancer
         {
             m_Bets = new NetworkList<RouletteBet>();
             m_History = new NetworkList<int>();
+            if (ball != null) m_BallRenderer = ball.GetComponentInChildren<Renderer>();
         }
 
         public override void OnNetworkSpawn()
@@ -97,6 +136,7 @@ namespace Freelancer
             if (chipStacks != null)
                 foreach (var s in chipStacks)
                     if (s != null) m_StackHome[s] = s.transform.localPosition;
+            if (IsServer) RestBall(0);
         }
 
         public override void OnNetworkDespawn()
@@ -124,7 +164,36 @@ namespace Freelancer
             _ => RouletteRules.Describe(m_Result.Value),
         };
 
-        // ---------- Betting and spinning ----------
+        /// <summary>"Take back $25" if this machine's player has chips on that spot (before the spin).</summary>
+        public string TakeBackPrompt(RouletteBetKind kind, int number)
+        {
+            int mine = MineOn(kind, number, all: false);
+            return mine > 0 ? $"Take back ${mine}" : "";
+        }
+
+        public string TakeBackAllPrompt
+        {
+            get
+            {
+                int mine = MineOn(RouletteBetKind.Red, 0, all: true);
+                return mine > 0 ? $"Take back all your bets (${mine})" : "";
+            }
+        }
+
+        int MineOn(RouletteBetKind kind, int number, bool all)
+        {
+            if (m_Phase.Value != RoulettePhase.Betting || NetworkManager == null) return 0;
+            ulong me = NetworkManager.LocalClientId;
+            int sum = 0;
+            foreach (var bet in m_Bets)
+                if (bet.ClientId == me && (all || Same(bet, kind, number))) sum += bet.Amount;
+            return sum;
+        }
+
+        static bool Same(RouletteBet bet, RouletteBetKind kind, int number) =>
+            bet.Kind == kind && (kind != RouletteBetKind.Straight || bet.Number == number);
+
+        // ---------- Betting ----------
 
         /// <summary>Any machine: put a chip down for the local player.</summary>
         public void PlaceBet(RouletteBetKind kind, int number, int amount) => PlaceBetRpc(kind, (byte)Mathf.Clamp(number, 0, 36), amount);
@@ -146,6 +215,32 @@ namespace Freelancer
             return true;
         }
 
+        /// <summary>Any machine: pick your chips back up off a spot (or everything, with <paramref name="all"/>).</summary>
+        public void TakeBack(RouletteBetKind kind, int number, bool all) => TakeBackRpc(kind, (byte)Mathf.Clamp(number, 0, 36), all);
+
+        [Rpc(SendTo.Server)]
+        void TakeBackRpc(RouletteBetKind kind, byte number, bool all, RpcParams rpcParams = default) =>
+            ServerTakeBack(rpcParams.Receive.SenderClientId, kind, number, all);
+
+        /// <summary>Server: give a player's chips back (only before the spin). Returns the refund.</summary>
+        public int ServerTakeBack(ulong clientId, RouletteBetKind kind, int number, bool all)
+        {
+            if (!IsServer || m_Phase.Value != RoulettePhase.Betting) return 0;
+            int refund = 0;
+            for (int i = m_Bets.Count - 1; i >= 0; i--)
+            {
+                var bet = m_Bets[i];
+                if (bet.ClientId != clientId || !(all || Same(bet, kind, number))) continue;
+                refund += bet.Amount;
+                m_Bets.RemoveAt(i);
+            }
+            if (refund > 0) CrewState.Current?.Receive(refund);
+            if (m_Bets.Count == 0) m_PhaseEndsAt.Value = 0; // table's empty again: no countdown
+            return refund;
+        }
+
+        // ---------- Spinning ----------
+
         /// <summary>Any machine: give the wheel a spin.</summary>
         public void RequestSpin() => SpinRpc();
 
@@ -162,11 +257,177 @@ namespace Freelancer
 
         void StartSpin(int spunBy)
         {
-            m_Result.Value = Random.Range(0, 37);
+            double now = Now;
+            // Keep the wheel's angle continuous: fold the last spin's extra turn into the offset.
+            if (m_SpinStartedAt.Value > 0) m_WheelOffset.Value = (float)((m_WheelOffset.Value + Boost(now - m_SpinStartedAt.Value)) % 360.0);
+            m_SpinStartedAt.Value = now;
+            m_Result.Value = -1;
             m_SpunBy.Value = spunBy;
-            m_SpinStartedAt.Value = Now;
-            m_PhaseEndsAt.Value = Now + spinSeconds;
+            m_PhaseEndsAt.Value = now + maxSpinSeconds;
             m_Phase.Value = RoulettePhase.Spinning;
+            LaunchBall();
+        }
+
+        /// <summary>Extra wheel angle (degrees) a spin has added after <paramref name="dt"/> seconds.</summary>
+        double Boost(double dt) => dt <= 0 ? 0 : spinBoost * spinBoostTime * (1.0 - System.Math.Exp(-dt / spinBoostTime));
+
+        float WheelAngle(double t)
+        {
+            double a = t * wheelSpeed + m_WheelOffset.Value;
+            if (m_SpinStartedAt.Value > 0) a += Boost(t - m_SpinStartedAt.Value);
+            return (float)(a % 360.0);
+        }
+
+        /// <summary>Wheel speed right now, degrees per second.</summary>
+        float WheelSpeedNow(double t)
+        {
+            double dt = t - m_SpinStartedAt.Value;
+            return wheelSpeed + (m_SpinStartedAt.Value > 0 && dt > 0 ? (float)(spinBoost * System.Math.Exp(-dt / spinBoostTime)) : 0f);
+        }
+
+        /// <summary>
+        /// Server: send the ball round the rim, against the wheel. On the rim it's moved exactly
+        /// (a fixed-step physics ball against a curved wall loses speed every step, far faster than a
+        /// real one), slowing with drag; once it's too slow to stay up, physics takes over for the
+        /// drop down the track, the deflectors, the frets and the pocket.
+        /// </summary>
+        void LaunchBall()
+        {
+            if (ballBody == null || wheel == null) return;
+            ballBody.isKinematic = true;
+            m_OnRim = true;
+            m_RimAngle = Random.Range(0f, Mathf.PI * 2f);
+            m_RimSpeed = Random.Range(launchSpeed.x, launchSpeed.y);
+            m_SettledFor = 0f;
+            ballBody.position = RimPoint(m_RimAngle);
+            ball.position = ballBody.position;
+        }
+
+        Vector3 RimPoint(float angle) =>
+            transform.TransformPoint(wheel.localPosition + new Vector3(Mathf.Sin(angle) * launchRadius, launchHeight, Mathf.Cos(angle) * launchRadius));
+
+        /// <summary>Server, each physics step while the ball circles the rim.</summary>
+        void RideRim()
+        {
+            float dt = Time.fixedDeltaTime;
+            m_RimSpeed = Mathf.Max(0f, m_RimSpeed - (rimDrag * m_RimSpeed + rimFriction) * dt);
+            m_RimAngle -= m_RimSpeed / launchRadius * dt; // the opposite way to the wheel
+            if (m_RimSpeed > fallSpeed)
+            {
+                ballBody.MovePosition(RimPoint(m_RimAngle));
+                return;
+            }
+
+            // Too slow to hold the rim: let go, moving the way it was, with a nudge down the slope.
+            var tangent = -new Vector3(Mathf.Cos(m_RimAngle), 0f, -Mathf.Sin(m_RimAngle));
+            var inward = -new Vector3(Mathf.Sin(m_RimAngle), 0f, Mathf.Cos(m_RimAngle));
+            m_OnRim = false;
+            ballBody.isKinematic = false;
+            ballBody.linearVelocity = transform.TransformDirection(tangent * m_RimSpeed + inward * 0.15f);
+            ballBody.angularVelocity = Vector3.zero;
+        }
+
+        /// <summary>Server: stop the ball's physics; from now on it's placed in its pocket every frame.</summary>
+        void RestBall(int pocketIndex)
+        {
+            if (ballBody == null) return;
+            if (!ballBody.isKinematic)
+            {
+                ballBody.linearVelocity = Vector3.zero;
+                ballBody.angularVelocity = Vector3.zero;
+                ballBody.isKinematic = true;
+            }
+            PlaceInPocket(pocketIndex);
+        }
+
+        /// <summary>
+        /// Put the ball in a pocket at the wheel's current angle. The ball is a child of the table, not
+        /// the wheel (a moving parent would drag a physics ball around), so once it has landed every
+        /// machine places it here each frame from the shared wheel clock.
+        /// </summary>
+        void PlaceInPocket(int pocketIndex)
+        {
+            if (ball == null || wheel == null) return;
+            float a = (WheelAngle(Now) + pocketIndex * 360f / RouletteRules.WheelOrder.Length) * Mathf.Deg2Rad;
+            ball.localPosition = wheel.localPosition + new Vector3(Mathf.Sin(a) * pocketRadius, restHeight, Mathf.Cos(a) * pocketRadius);
+        }
+
+        void LateUpdate()
+        {
+            // After the network transform has had its say: outside a spin the ball sits in its pocket.
+            if (!IsSpawned || m_Phase.Value == RoulettePhase.Spinning || m_Result.Value < 0) return;
+            PlaceInPocket(System.Array.IndexOf(RouletteRules.WheelOrder, m_Result.Value));
+        }
+
+        /// <summary>Server: the ball has stopped (or we've waited long enough). Read its pocket and pay out.</summary>
+        void Settle(bool forced = false)
+        {
+            int n = RouletteRules.WheelOrder.Length;
+            Vector3 local = Quaternion.Inverse(wheelBody != null ? wheelBody.rotation : wheel.rotation) *
+                            (ballBody.position - (wheelBody != null ? wheelBody.position : wheel.position));
+            float angle = Mathf.Atan2(local.x, local.z) * Mathf.Rad2Deg;
+            int index = ((Mathf.RoundToInt(angle / (360f / n)) % n) + n) % n;
+            int result = RouletteRules.WheelOrder[index];
+            m_OnRim = false;
+            Debug.Log($"[Freelancer] Roulette ball settled in {RouletteRules.Describe(result)} after {Now - m_SpinStartedAt.Value:0.0}s" +
+                      (forced ? " (forced: didn't come to rest)" : ""));
+            RestBall(index);
+
+            int staked = 0, returned = 0;
+            foreach (var bet in m_Bets)
+            {
+                staked += bet.Amount;
+                returned += RouletteRules.Returned(bet, result);
+            }
+            CrewState.Current?.Receive(returned);
+            m_Result.Value = result;
+            m_LastStaked.Value = staked;
+            m_LastReturned.Value = returned;
+            m_History.Insert(0, result);
+            while (m_History.Count > 10) m_History.RemoveAt(m_History.Count - 1);
+            m_PhaseEndsAt.Value = Now + payoutSeconds;
+            m_Phase.Value = RoulettePhase.Payout;
+        }
+
+        void FixedUpdate()
+        {
+            if (!IsServer || !IsSpawned) return;
+            if (wheelBody != null) wheelBody.MoveRotation(transform.rotation * Quaternion.Euler(0f, WheelAngle(Now), 0f));
+            if (m_Phase.Value != RoulettePhase.Spinning || ballBody == null) return;
+            if (m_OnRim) RideRim();
+            else if (!ballBody.isKinematic) WatchBall();
+        }
+
+        /// <summary>Server: is the ball sitting in a pocket, riding along with the wheel?</summary>
+        void WatchBall()
+        {
+            Vector3 center = transform.TransformPoint(wheel.localPosition);
+            Vector3 offset = transform.InverseTransformDirection(ballBody.position - center);
+            float r = new Vector2(offset.x, offset.z).magnitude;
+
+            // Flew off somewhere it shouldn't: read the nearest pocket rather than wait.
+            if (r > 0.8f || offset.y < -0.3f || offset.y > 0.6f)
+            {
+                Debug.LogWarning($"[Freelancer] Roulette ball left the wheel (r={r:0.00}, y={offset.y:0.00}); reading the nearest pocket.");
+                Settle(forced: true);
+                return;
+            }
+
+            if (Trace && Time.time >= m_NextTrace)
+            {
+                double since = Now - m_SpinStartedAt.Value;
+                m_NextTrace = Time.time + (since < 0.4 ? 0f : 0.25f);
+                Vector3 v = transform.InverseTransformDirection(ballBody.linearVelocity);
+                float radial = Vector3.Dot(new Vector3(v.x, 0f, v.z), new Vector3(offset.x, 0f, offset.z).normalized);
+                Debug.Log($"[Freelancer] Roulette trace t={since:0.000} r={r:0.000} y={offset.y:0.000} speed={v.magnitude:0.00} radial={radial:0.00} vy={v.y:0.00}");
+            }
+
+            float omega = WheelSpeedNow(Now) * Mathf.Deg2Rad;
+            Vector3 surface = transform.TransformDirection(Vector3.Cross(Vector3.up * omega, new Vector3(offset.x, 0f, offset.z)));
+            float relative = (ballBody.linearVelocity - surface).magnitude;
+            bool inPocket = r < settleRadius && offset.y < restHeight + 0.03f;
+            m_SettledFor = inPocket && relative < settleSpeed ? m_SettledFor + Time.fixedDeltaTime : 0f;
+            if (m_SettledFor >= settleTime) Settle();
         }
 
         void Update()
@@ -183,23 +444,9 @@ namespace Freelancer
                 case RoulettePhase.Betting:
                     StartSpin(0);
                     break;
-
                 case RoulettePhase.Spinning:
-                    int staked = 0, returned = 0;
-                    foreach (var bet in m_Bets)
-                    {
-                        staked += bet.Amount;
-                        returned += RouletteRules.Returned(bet, m_Result.Value);
-                    }
-                    CrewState.Current?.Receive(returned);
-                    m_LastStaked.Value = staked;
-                    m_LastReturned.Value = returned;
-                    m_History.Insert(0, m_Result.Value);
-                    while (m_History.Count > 10) m_History.RemoveAt(m_History.Count - 1);
-                    m_PhaseEndsAt.Value = Now + payoutSeconds;
-                    m_Phase.Value = RoulettePhase.Payout;
+                    Settle(forced: true); // took too long: whichever pocket it's nearest
                     break;
-
                 case RoulettePhase.Payout:
                     m_Bets.Clear();
                     m_PhaseEndsAt.Value = 0;
@@ -225,13 +472,15 @@ namespace Freelancer
 
         // ---------- Everyone: wheel, ball, chips, glows, board ----------
 
-        float WheelAngle(double time) => (float)(time * wheelSpeed % 360.0);
-
         void Animate()
         {
-            double now = Now;
-            if (wheel != null) wheel.localRotation = Quaternion.Euler(0f, WheelAngle(now), 0f);
-            AnimateBall(now);
+            // The server's wheel is turned by physics (FixedUpdate); everyone else sets it from the clock.
+            if (wheel != null && !IsServer) wheel.localRotation = Quaternion.Euler(0f, WheelAngle(Now), 0f);
+            if (m_BallRenderer != null)
+            {
+                bool show = m_Phase.Value == RoulettePhase.Spinning || m_Result.Value >= 0;
+                if (m_BallRenderer.enabled != show) m_BallRenderer.enabled = show;
+            }
 
             // Hover glow on the spot you're aiming at, only while bets are open.
             if (hoverMarker != null)
@@ -275,32 +524,6 @@ namespace Freelancer
             marker.position = spot.position + spot.up * lift;
             marker.rotation = spot.rotation;
             marker.localScale = new Vector3(size.x, 0.003f, size.z);
-        }
-
-        void AnimateBall(double now)
-        {
-            if (ball == null || wheel == null) return;
-            int result = m_Result.Value;
-            bool show = result >= 0;
-            if (ball.gameObject.activeSelf != show) ball.gameObject.SetActive(show);
-            if (!show) return;
-
-            float settled = WheelAngle(now) + RouletteRules.PocketAngle(result);
-            float angle = settled, radius = pocketRadius, hop = 0f;
-            if (m_Phase.Value == RoulettePhase.Spinning)
-            {
-                // Spins the other way round the rim, slows down, then drops into its pocket.
-                float u = Mathf.Clamp01((float)((now - m_SpinStartedAt.Value) / spinSeconds));
-                double end = m_SpinStartedAt.Value + spinSeconds;
-                float final = WheelAngle(end) + RouletteRules.PocketAngle(result);
-                float drop = Mathf.InverseLerp(0.68f, 0.9f, u);
-                angle = Mathf.Lerp(final + 360f * 7f * (1f - u) * (1f - u), settled, Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.9f, 1f, u)));
-                radius = Mathf.Lerp(rimRadius, pocketRadius, drop);
-                hop = drop > 0f && drop < 1f ? Mathf.Abs(Mathf.Sin(drop * Mathf.PI * 3f)) * 0.03f * (1f - drop) : 0f;
-            }
-            float a = angle * Mathf.Deg2Rad;
-            float y = Mathf.Lerp(0.035f, 0.02f, Mathf.InverseLerp(rimRadius, pocketRadius, radius));
-            ball.localPosition = wheel.localPosition + new Vector3(Mathf.Sin(a) * radius, y + hop, Mathf.Cos(a) * radius);
         }
 
         static readonly Color[] k_ChipColors =
@@ -376,7 +599,7 @@ namespace Freelancer
                     break;
             }
             sb.Append("\n<size=60%>");
-            if (m_History.Count == 0) sb.Append("E on the felt to bet · E on the wheel to spin");
+            if (m_History.Count == 0) sb.Append("E on the felt to bet · R takes it back · E on the wheel to spin");
             for (int i = 0; i < m_History.Count; i++)
                 sb.Append($"<color={RouletteRules.Hex(m_History[i])}>{m_History[i]}</color>  ");
             sb.Append("</size>");

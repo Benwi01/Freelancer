@@ -72,7 +72,7 @@ namespace Freelancer
                     float left = table.SecondsLeft;
                     m_Bottom.text = mine.Length == 0
                         ? "Look at the felt and press <b>E</b> to bet.  <b>E</b> on a chip stack to change chip."
-                        : $"Your bets: {mine}   ·   <b>E</b> on the wheel to spin" + (left >= 0 ? $" (spins itself in {Mathf.CeilToInt(left)})" : "");
+                        : $"Your bets: {mine}   ·   <b>R</b> takes a bet back   ·   <b>E</b> on the wheel to spin" + (left >= 0 ? $" ({Mathf.CeilToInt(left)})" : "");
                     break;
                 case RoulettePhase.Spinning:
                     m_Bottom.text = mine.Length == 0 ? "No more bets. Round and round it goes..." : $"No more bets.   Your bets: {mine}";

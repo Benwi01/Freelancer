@@ -8,16 +8,18 @@ using UnityEngine;
 namespace Freelancer.EditorTools
 {
     /// <summary>
-    /// Plays one round of roulette at Lucky Lenny's: hosts locally, walks the player up to the table,
-    /// bets $50 on red, $25 on 17 and $10 on odd, spins from the wheel, and screenshots the table, the spin and the payout to
-    /// Temp/casino-*.png. Puts the real crew save back afterwards.
+    /// Plays three rounds of roulette at Lucky Lenny's on a local host: bets on red, 17 and odd,
+    /// takes the odd bet back and moves it to even, spins from the wheel, and lets the physics ball
+    /// land. Checks every payout and saves screenshots to Temp/casino-*.png (first round), then puts
+    /// the real crew save back.
     /// </summary>
     [InitializeOnLoad]
     static class DevCasinoTest
     {
         const string Key = "Freelancer.CasinoTest.Stage";
-        static double s_StartedAt;
-        static int s_MoneyBefore;
+        const int Rounds = 3;
+        static double s_StartedAt, s_SpinAt;
+        static int s_MoneyBefore, s_Round;
 
         static DevCasinoTest() => EditorApplication.update += Tick;
 
@@ -30,15 +32,18 @@ namespace Freelancer.EditorTools
             if (File.Exists(CrewSave.FilePath)) File.Copy(CrewSave.FilePath, Backup, true);
             // Plenty to gamble with, and no landlord letter in the way.
             var save = CrewSave.Load();
-            save.money = 500;
+            save.money = 1000;
             save.rentIntroShown = true;
             save.Save();
+            s_Round = 0;
+            RouletteTable.Trace = false; // true logs the ball's flight every quarter second
             EditorSceneManager.OpenScene(SetupUtil.MenuScenePath);
             SessionState.SetInt(Key, 1);
             EditorApplication.isPlaying = true;
         }
 
         static double T => EditorApplication.timeSinceStartup - s_StartedAt;
+        static double SinceSpin => EditorApplication.timeSinceStartup - s_SpinAt;
 
         static void Next(int stage) => SessionState.SetInt(Key, stage);
 
@@ -47,6 +52,7 @@ namespace Freelancer.EditorTools
             int stage = SessionState.GetInt(Key, 0);
             if (stage == 0 || !EditorApplication.isPlaying) return;
             var table = RouletteTable.Current;
+            ulong host = NetworkManager.ServerClientId;
 
             switch (stage)
             {
@@ -56,51 +62,61 @@ namespace Freelancer.EditorTools
                     Next(2);
                     break;
                 case 2 when T > 5:
-                    Place(new Vector3(-21.5f, 0.05f, -19.2f), 180f, 4f); // outside, looking in through the door
+                    Place(new Vector3(-21.2f, 0.05f, -23.7f), 180f, 38f); // at the table, looking down at the felt
                     Next(3);
                     break;
-                case 3 when T > 6:
-                    Shot("entrance");
-                    Place(new Vector3(-17.5f, 0.05f, -21.2f), 230f, 12f); // the hall
+                case 3 when T > 6 && table != null:
+                    s_MoneyBefore = CrewState.Current.Money;
+                    RouletteTable.LocalChip = 50;
+                    table.ServerPlaceBet(host, RouletteBetKind.Red, 0, 50);
+                    table.ServerPlaceBet(host, RouletteBetKind.Straight, 17, 25);
+                    table.ServerPlaceBet(host, RouletteBetKind.Odd, 0, 10);
+                    // Changed my mind: odd → even.
+                    int refund = table.ServerTakeBack(host, RouletteBetKind.Odd, 0, all: false);
+                    table.ServerPlaceBet(host, RouletteBetKind.Even, 0, 10);
+                    Debug.Log($"[Freelancer] ROULETTE TEST round {s_Round + 1}: took back ${refund} from ODD, money now {CrewState.Current.Money} (expected {s_MoneyBefore - 85})");
                     Next(4);
                     break;
                 case 4 when T > 7:
-                    Shot("hall");
-                    Place(new Vector3(-21.2f, 0.05f, -23.7f), 180f, 38f); // at the table, looking down at the wheel and felt
+                    if (s_Round == 0) Shot("betting");
                     Next(5);
                     break;
-                case 5 when T > 8 && table != null:
-                    s_MoneyBefore = CrewState.Current.Money;
-                    RouletteTable.LocalChip = 50;
-                    table.ServerPlaceBet(NetworkManager.ServerClientId, RouletteBetKind.Red, 0, 50);
-                    table.ServerPlaceBet(NetworkManager.ServerClientId, RouletteBetKind.Straight, 17, 25);
-                    table.ServerPlaceBet(NetworkManager.ServerClientId, RouletteBetKind.Odd, 0, 10);
+                case 5 when T > 8:
+                    if (s_Round == 0) Place(new Vector3(-22.45f, 0.05f, -24.15f), 180f, 34f); // close up on the wheel
+                    Debug.Log($"[Freelancer] ROULETTE TEST spin from the wheel: {table.ServerSpin(host)} by={table.SpunBy}");
+                    s_SpinAt = EditorApplication.timeSinceStartup;
                     Next(6);
                     break;
-                case 6 when T > 9.5:
-                    Shot("betting");
-                    Next(61);
-                    break;
-                case 61 when T > 10.5:
-                    Debug.Log($"[Freelancer] ROULETTE TEST spin from the wheel: {table.ServerSpin(NetworkManager.ServerClientId)} by={table.SpunBy}");
+                case 6 when SinceSpin > 1.5:
+                    if (s_Round == 0) Shot("spin-fast");
                     Next(7);
                     break;
-                case 7 when table != null && table.Phase == RoulettePhase.Spinning && table.SecondsLeft < 3.2f:
-                    Shot("spin");
+                case 7 when SinceSpin > 4.4:
+                    if (s_Round == 0) Shot("spin-slow");
                     Next(8);
                     break;
-                case 8 when table != null && table.Phase == RoulettePhase.Payout && table.SecondsLeft < 3.5f:
-                    Shot("result");
-                    int r = table.Result;
-                    int expected = s_MoneyBefore - 85 +
-                                   (RouletteRules.IsRed(r) ? 100 : 0) + (r == 17 ? 900 : 0) + (r > 0 && r % 2 == 1 ? 20 : 0);
-                    Debug.Log($"[Freelancer] ROULETTE TEST result={RouletteRules.Describe(r)} before={s_MoneyBefore} " +
-                              $"after={CrewState.Current.Money} expected={expected} {(expected == CrewState.Current.Money ? "OK" : "MISMATCH")} " +
-                              $"staked={table.LastStaked} returned={table.LastReturned}");
+                case 8 when table != null && table.Phase == RoulettePhase.Payout:
+                    s_SpinAt = EditorApplication.timeSinceStartup;
                     Next(9);
                     break;
-                case 9 when table != null && table.Phase == RoulettePhase.Betting:
-                    Debug.Log($"[Freelancer] ROULETTE TEST next round open, bets on table={table.Bets.Count}");
+                case 9 when SinceSpin > 1.2:
+                    if (s_Round == 0) Shot("result");
+                    int r = table.Result;
+                    int expected = s_MoneyBefore - 85 +
+                                   (RouletteRules.IsRed(r) ? 100 : 0) + (r == 17 ? 900 : 0) + (r > 0 && r % 2 == 0 ? 20 : 0);
+                    Debug.Log($"[Freelancer] ROULETTE TEST round {s_Round + 1} result={RouletteRules.Describe(r)} before={s_MoneyBefore} " +
+                              $"after={CrewState.Current.Money} expected={expected} {(expected == CrewState.Current.Money ? "OK" : "MISMATCH")} " +
+                              $"staked={table.LastStaked} returned={table.LastReturned}");
+                    Next(10);
+                    break;
+                case 10 when table != null && table.Phase == RoulettePhase.Betting:
+                    s_Round++;
+                    if (s_Round < Rounds)
+                    {
+                        s_StartedAt = EditorApplication.timeSinceStartup - 5.5;
+                        Next(3);
+                        break;
+                    }
                     Next(0);
                     EditorApplication.isPlaying = false;
                     if (File.Exists(Backup))
