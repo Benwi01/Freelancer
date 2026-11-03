@@ -32,6 +32,12 @@ namespace Freelancer.EditorTools
             (new Vector3(3.3f, 1.6f, 1.9f), new Vector3(3.3f, 1.25f, 3.7f)),      // at the computer
             (new Vector3(2.5f, 1.65f, 2.5f), new Vector3(-3f, 0.8f, -2.5f)),      // back toward couch and door
             (new Vector3(-1f, 1.65f, 1.5f), new Vector3(4.5f, 1.2f, -1f)),        // kitchenette
+            (new Vector3(3.2f, 1.65f, -1.5f), new Vector3(3.2f, 1.3f, -9f)),      // out of the front door
+            (new Vector3(-3f, 1.7f, -17f), new Vector3(3f, 2.5f, -4f)),           // from the park side: the flat, van, shops
+            (new Vector3(-6f, 1.8f, -7f), new Vector3(16f, 3f, -6f)),             // along the north side: THREADZ, BJÖRKMÖBEL
+            (new Vector3(4f, 1.8f, -10f), new Vector3(-16f, 2.5f, -22f)),         // across to the casino and park
+            (new Vector3(-3f, 1.7f, -14f), new Vector3(8f, 2f, -22f)),            // park and Pemberton Properties
+            (new Vector3(16f, 14f, -38f), new Vector3(-2f, 0f, -12f)),            // overview
         };
 
         static readonly (Vector3 pos, Vector3 lookAt)[] k_BarViews =

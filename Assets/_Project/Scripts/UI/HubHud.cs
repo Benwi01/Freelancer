@@ -33,8 +33,8 @@ namespace Freelancer
             m_Funds.text = crew != null ? FundsText(crew) : "";
             string rent = crew != null ? $"Rent (${crew.RentDue}) is due in {Gigs(crew.GigsUntilRent)}. " : "";
             m_Hint.text = isHost
-                ? rent + "Find a gig on the computer and press <b>E</b>."
-                : rent + "Wait for the host to pick a gig (or browse the computer with <b>E</b>).";
+                ? rent + "Find a gig on the computer or the van outside (<b>E</b>)."
+                : rent + "Wait for the host to pick a gig (or browse GigGrabber with <b>E</b>).";
         }
 
         /// <summary>Funds, then rent: red when the crew can't cover it yet.</summary>

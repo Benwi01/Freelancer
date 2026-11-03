@@ -7,11 +7,13 @@ using static Freelancer.EditorTools.SceneKit;
 namespace Freelancer.EditorTools
 {
     /// <summary>
-    /// Builds the Hub scene: the crew's small, slightly run-down apartment with the GigGrabber
-    /// computer. Room interior is x -5..5, z -4..4, floor at 0, ceiling at 2.9.
+    /// Builds the Hub scene: the crew's small, slightly run-down ground-floor flat with the
+    /// GigGrabber computer, and the town block outside its front door (see HubSceneBuilder.Town).
+    /// Room interior is x -5..5, z -4..4, floor at 0, ceiling at 2.9; the front door is in the
+    /// south wall at x 2.7..3.7 and opens onto Main Street.
     /// Computer on the north wall, couch on the south wall, kitchenette east, mattress west.
     /// </summary>
-    static class HubSceneBuilder
+    static partial class HubSceneBuilder
     {
         const float Height = 2.9f;
         static Transform s_Root;
@@ -26,8 +28,8 @@ namespace Freelancer.EditorTools
             var cam = Camera.main;
             if (cam != null)
             {
-                cam.transform.position = new Vector3(-0.5f, 2.3f, -3.4f);
-                cam.transform.LookAt(new Vector3(1.5f, 1f, 2.5f));
+                cam.transform.position = new Vector3(12f, 6f, -26f);
+                cam.transform.LookAt(new Vector3(0f, 1.5f, -8f));
             }
 
             s_Root = new GameObject("Apartment").transform;
@@ -40,6 +42,7 @@ namespace Freelancer.EditorTools
             BuildClutter();
             BuildLights();
             PlaceGameplay();
+            BuildTown();
 
             new GameObject("SessionHud").AddComponent<SessionHud>();
             new GameObject("HubHud").AddComponent<HubHud>();
@@ -68,33 +71,46 @@ namespace Freelancer.EditorTools
             SetupUtil.Block("Floor", g, new Vector3(0f, -0.1f, 0f), new Vector3(10.4f, 0.2f, 8.4f), M("Floor", Palette.Floor));
             SetupUtil.Block("Ceiling", g, new Vector3(0f, Height + 0.1f, 0f), new Vector3(10.4f, 0.2f, 8.4f), M("Ceiling", Palette.Ceiling));
             SetupUtil.Block("WallN", g, new Vector3(0f, Height / 2f, 4.1f), new Vector3(10.4f, Height, 0.2f), wall);
-            SetupUtil.Block("WallS", g, new Vector3(0f, Height / 2f, -4.1f), new Vector3(10.4f, Height, 0.2f), wall);
+            const float doorW = 2.7f, doorE = 3.7f, doorTop = 2.3f;
+            SetupUtil.Block("WallS_W", g, new Vector3((-5.2f + doorW) / 2f, Height / 2f, -4.1f), new Vector3(doorW + 5.2f, Height, 0.2f), wall);
+            SetupUtil.Block("WallS_E", g, new Vector3((doorE + 5.2f) / 2f, Height / 2f, -4.1f), new Vector3(5.2f - doorE, Height, 0.2f), wall);
+            SetupUtil.Block("WallS_Lintel", g, new Vector3((doorW + doorE) / 2f, (doorTop + Height) / 2f, -4.1f), new Vector3(doorE - doorW, Height - doorTop, 0.2f), wall);
             SetupUtil.Block("WallE", g, new Vector3(5.1f, Height / 2f, 0f), new Vector3(0.2f, Height, 8.4f), wall);
             SetupUtil.Block("WallW", g, new Vector3(-5.1f, Height / 2f, 0f), new Vector3(0.2f, Height, 8.4f), wall);
 
             // Cream panelling on the lower part of the walls, with a rail on top.
             var panel = M("Wainscot", Palette.Wainscot);
             Box("PanelN", g, new Vector3(0f, 0.5f, 3.985f), new Vector3(10f, 1f, 0.03f), panel);
-            Box("PanelS", g, new Vector3(0f, 0.5f, -3.985f), new Vector3(10f, 1f, 0.03f), panel);
+            Box("PanelS_W", g, new Vector3((-5f + doorW) / 2f, 0.5f, -3.985f), new Vector3(doorW + 5f, 1f, 0.03f), panel);
+            Box("PanelS_E", g, new Vector3((doorE + 5f) / 2f, 0.5f, -3.985f), new Vector3(5f - doorE, 1f, 0.03f), panel);
             Box("PanelE", g, new Vector3(4.985f, 0.5f, 0f), new Vector3(0.03f, 1f, 8f), panel);
             Box("PanelW", g, new Vector3(-4.985f, 0.5f, 0f), new Vector3(0.03f, 1f, 8f), panel);
             Box("RailN", g, new Vector3(0f, 1.02f, 3.97f), new Vector3(10f, 0.05f, 0.06f), Stone);
-            Box("RailS", g, new Vector3(0f, 1.02f, -3.97f), new Vector3(10f, 0.05f, 0.06f), Stone);
+            Box("RailS_W", g, new Vector3((-5f + doorW) / 2f, 1.02f, -3.97f), new Vector3(doorW + 5f, 0.05f, 0.06f), Stone);
+            Box("RailS_E", g, new Vector3((doorE + 5f) / 2f, 1.02f, -3.97f), new Vector3(5f - doorE, 0.05f, 0.06f), Stone);
             Box("RailE", g, new Vector3(4.97f, 1.02f, 0f), new Vector3(0.06f, 0.05f, 8f), Stone);
             Box("RailW", g, new Vector3(-4.97f, 1.02f, 0f), new Vector3(0.06f, 0.05f, 8f), Stone);
 
             // Skirting boards all round, plus a water stain for that lived-in feel.
             Box("SkirtN", g, new Vector3(0f, 0.06f, 3.98f), new Vector3(10f, 0.12f, 0.04f), Stone);
-            Box("SkirtS", g, new Vector3(0f, 0.06f, -3.98f), new Vector3(10f, 0.12f, 0.04f), Stone);
+            Box("SkirtS_W", g, new Vector3((-5f + doorW) / 2f, 0.06f, -3.98f), new Vector3(doorW + 5f, 0.12f, 0.04f), Stone);
+            Box("SkirtS_E", g, new Vector3((doorE + 5f) / 2f, 0.06f, -3.98f), new Vector3(5f - doorE, 0.12f, 0.04f), Stone);
             Box("SkirtE", g, new Vector3(4.98f, 0.06f, 0f), new Vector3(0.04f, 0.12f, 8f), Stone);
             Box("SkirtW", g, new Vector3(-4.98f, 0.06f, 0f), new Vector3(0.04f, 0.12f, 8f), Stone);
             Box("Stain", g, new Vector3(-3.6f, 2.55f, 3.995f), new Vector3(0.9f, 0.45f, 0.004f), M("Stain", Palette.Stain));
             Box("StainDrip", g, new Vector3(-3.75f, 2.2f, 3.995f), new Vector3(0.18f, 0.4f, 0.004f), M("Stain", Palette.Stain));
 
-            // Windows (the city is out there somewhere) and the front door.
+            // Windows (onto the back yard, allegedly) and the front door, propped open onto the street.
             Window(g, new Vector3(-2.4f, 1.6f, 4f), 0f, 1.2f, 1.3f);
             Window(g, new Vector3(0.2f, 1.6f, 4f), 0f, 1.2f, 1.3f);
-            Door(g, new Vector3(3.2f, 0f, -4f), 0f, "4C", 0);
+            Box("DoorFrameL", g, new Vector3(doorW - 0.05f, doorTop / 2f, -3.97f), new Vector3(0.1f, doorTop, 0.06f), Stone);
+            Box("DoorFrameR", g, new Vector3(doorE + 0.05f, doorTop / 2f, -3.97f), new Vector3(0.1f, doorTop, 0.06f), Stone);
+            Box("DoorFrameTop", g, new Vector3((doorW + doorE) / 2f, doorTop + 0.05f, -3.97f), new Vector3(doorE - doorW + 0.2f, 0.1f, 0.06f), Stone);
+            var door = SetupUtil.Empty("FrontDoor", g, new Vector3(doorE - 0.03f, 0f, -3.95f)).transform;
+            door.localRotation = Quaternion.Euler(0f, 100f, 0f); // swung open into the flat, hinged on the east side
+            Box("Panel", door, new Vector3(-0.48f, 1.12f, 0.03f), new Vector3(0.96f, 2.22f, 0.05f), M("Door0", Palette.Doors[0]));
+            Vis(LowPolyMeshes.Sphere, "Handle", door, new Vector3(-0.85f, 1f, 0.08f), Vector3.one * 0.07f, M("Brass", Palette.Brass, 0.6f));
+            Label("4C", g, door.TransformPoint(new Vector3(-0.48f, 1.95f, 0.065f)), door.rotation * Quaternion.Euler(0f, 180f, 0f), 0.08f, Palette.Trim, Palette.Brass);
 
             Box("Rug", g, new Vector3(-0.6f, 0.006f, -0.6f), new Vector3(3.4f, 0.012f, 2.4f), M("HubRug", Palette.HubRug));
         }
@@ -236,8 +252,8 @@ namespace Freelancer.EditorTools
 
             // Shoes by the door.
             var shoes = M("Shoes", new Color(0.18f, 0.14f, 0.13f));
-            Box("Shoe", g, new Vector3(2.2f, 0.045f, -3.6f), new Vector3(0.12f, 0.09f, 0.28f), shoes, Quaternion.Euler(0f, 12f, 0f));
-            Box("Shoe", g, new Vector3(2.4f, 0.045f, -3.55f), new Vector3(0.12f, 0.09f, 0.28f), shoes, Quaternion.Euler(0f, -20f, 0f));
+            Box("Shoe", g, new Vector3(1.9f, 0.045f, -3.6f), new Vector3(0.12f, 0.09f, 0.28f), shoes, Quaternion.Euler(0f, 12f, 0f));
+            Box("Shoe", g, new Vector3(2.1f, 0.045f, -3.55f), new Vector3(0.12f, 0.09f, 0.28f), shoes, Quaternion.Euler(0f, -20f, 0f));
 
             // Floor lamp by the couch.
             Solid(PrimitiveType.Cylinder, "FloorLampPole", g, new Vector3(-3.75f, 0.75f, -3.5f), new Vector3(0.05f, 0.75f, 0.05f), Metal);
